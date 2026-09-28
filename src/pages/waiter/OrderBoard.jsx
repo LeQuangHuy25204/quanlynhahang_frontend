@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import apiClient from '../../api/client';
 import { toast } from 'sonner';
-import { RefreshCcw, Check, Flame, X, Scale } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDistanceToNowStrict } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 export default function OrderBoard() {
   const { staff } = useAuthStore();
-  const [filter, setFilter] = useState('all'); // all, new, cooking
+  const [now, setNow] = useState(Date.now());
   
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000); // update timestamps every min
+    return () => clearInterval(timer);
+  }, []);
+
   const { data: orders = [], isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['staffOrders', staff?.branchId],
     queryFn: () => apiClient.get(`/orders?branchId=${staff?.branchId}`).then(res => res.data),
@@ -43,119 +48,189 @@ export default function OrderBoard() {
     }
   };
 
-  const handleCancel = async (orderLineId) => {
-    const reason = prompt('Lý do hủy món:');
-    if (reason === null) return;
-    try {
-      await apiClient.patch(`/orders/lines/${orderLineId}/cancel`, { cancelReason: reason || 'Hết món' });
-      toast.success('Đã hủy món');
-      refetch();
-    } catch (err) {
-      toast.error(err.message || 'Không thể hủy món này');
-    }
-  };
+  if (isLoading && !isRefetching) return <div className="p-10 text-center text-text-tertiary">Đang tải dữ liệu bếp...</div>;
 
-  if (isLoading && !isRefetching) return <div className="p-10 text-center text-gray-500">Đang tải dữ liệu bếp...</div>;
-
-  // Extract all lines from all orders, flatten, sort by time (oldest first for kitchen)
   let allLines = [];
   orders.forEach(order => {
     order.lines.forEach(line => {
-      allLines.push({
-        ...line,
-        OrderNumber: order.OrderNumber,
-        TableName: order.TableName,
-        CreatedAt: order.CreatedAt,
-      });
+      // Exclude cancelled items from board
+      if (line.Status !== 3) {
+        allLines.push({
+          ...line,
+          OrderNumber: order.OrderNumber,
+          TableName: order.TableName,
+          CreatedAt: order.CreatedAt,
+        });
+      }
     });
   });
   
-  // Sort oldest first
   allLines.sort((a, b) => new Date(a.CreatedAt) - new Date(b.CreatedAt));
 
-  if (filter === 'new') allLines = allLines.filter(l => l.Status === 0 || l.Status === 1); // wait confirm, wait weigh
-  if (filter === 'cooking') allLines = allLines.filter(l => l.Status === 2 || l.Status === 4); // confirmed, cooking
-  // filter out cancelled lines by default unless viewing all maybe? Keep them out to avoid clutter, or filter out
-  if (filter !== 'all') allLines = allLines.filter(l => l.Status !== 3);
+  const getTimeText = (dateString) => {
+    const diff = formatDistanceToNowStrict(new Date(dateString), { locale: vi, addSuffix: false });
+    if (diff.includes('giây')) return 'vừa xong';
+    return diff.replace('phút', 'phút').replace('giờ', 'giờ');
+  };
 
-  const statusColors = {
-    0: 'bg-yellow-100 text-yellow-800',
-    1: 'bg-purple-100 text-purple-800',
-    2: 'bg-blue-100 text-blue-800',
-    3: 'bg-red-100 text-red-800',
-    4: 'bg-orange-100 text-orange-800',
-  };
-  const statusTexts = {
-    0: 'Mới', 1: 'Chờ Cân', 2: 'Đã xác nhận', 3: 'Đã hủy', 4: 'Đang nấu'
-  };
+  // 0: New, 1: Wait weigh -> Chờ xác nhận
+  const pendingLines = allLines.filter(l => l.Status === 0 || l.Status === 1);
+  // 2: Confirmed, 4: Cooking -> Đang chế biến
+  const cookingLines = allLines.filter(l => l.Status === 2 || l.Status === 4);
+  // 5: Ready to serve -> Sẵn sàng phục vụ (Assuming status 5 is Ready, we use it. If not, maybe use status 4 for ready? Let's use 5 as Ready and 6 as Served)
+  const readyLines = allLines.filter(l => l.Status === 5);
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-800">Tiếp nhận món</h1>
+    <div className="h-full flex flex-col p-4 bg-bg-page overflow-hidden">
+      <div className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4">
         
-        <div className="flex items-center gap-2">
-          <select 
-            value={filter} 
-            onChange={(e) => setFilter(e.target.value)}
-            className="p-2 border border-gray-200 rounded-lg text-sm bg-white outline-none focus:border-primary"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="new">Món mới & Chờ cân</option>
-            <option value="cooking">Đang xử lý / Bếp</option>
-          </select>
-          <button onClick={() => refetch()} className="p-2 bg-white rounded-lg border border-gray-200 text-gray-500 hover:text-primary transition-colors">
-            <RefreshCcw size={18} className={isRefetching ? 'animate-spin text-primary' : ''} />
-          </button>
+        {/* CỘT 1: CHỜ XÁC NHẬN */}
+        <div className="flex-1 min-w-[320px] bg-white rounded-[20px] border border-border flex flex-col shadow-sm">
+          <div className="p-5 flex items-center justify-between border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]"></div>
+              <h2 className="text-[15px] font-extrabold text-text-primary">Chờ xác nhận</h2>
+            </div>
+            <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[11px] font-bold text-text-secondary">
+              {pendingLines.length}
+            </span>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {pendingLines.map(line => (
+              <div key={line.OrderLineID} className={`bg-white border-[1.5px] rounded-[16px] p-5 shadow-sm relative ${line.Status === 1 ? 'border-[#f97316]/30' : 'border-border'}`}>
+                
+                {line.Status === 1 && (
+                  <div className="absolute top-4 left-5 flex items-center gap-1.5 text-[11px] font-bold text-[#f97316]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#f97316]"></div>
+                    Chờ cân
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-end mb-4 pt-1">
+                  <span className={`font-bold text-[14px] ${line.Status === 1 ? 'mt-4' : ''} text-text-primary`}>Bàn {line.TableName}</span>
+                  <span className="text-[12px] font-medium text-text-tertiary">
+                    {getTimeText(line.CreatedAt)}
+                  </span>
+                </div>
+                
+                <div className="mb-5">
+                  <h3 className="font-extrabold text-[16px] text-text-primary leading-snug">
+                    {Number(line.Quantity) > 0 ? Number(line.Quantity) : '?'}× {line.MenuItemName}
+                  </h3>
+                  
+                  {line.Status === 1 && (
+                    <p className="text-[12px] font-medium text-[#f97316] mt-1.5">Món theo cân - cần cân trước khi gửi bếp</p>
+                  )}
+                  {line.Note && (
+                    <p className="text-[12px] font-medium text-text-secondary mt-1.5">{line.Note}</p>
+                  )}
+                </div>
+
+                {line.Status === 1 ? (
+                  <button 
+                    onClick={() => handleWeightInput(line.OrderLineID)}
+                    className="w-full py-3 bg-[#f97316] hover:bg-[#ea580c] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
+                  >
+                    Nhập số cân
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => handleUpdateStatus(line.OrderLineID, 2)}
+                    className="w-full py-3 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
+                  >
+                    Xác nhận
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {allLines.map(line => (
-          <div key={line.OrderLineID} className={`bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow border p-4 ${line.Status === 3 ? 'opacity-60 grayscale' : 'border-gray-100'}`}>
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <span className="font-extrabold text-lg text-primary">{line.TableName}</span>
-                <p className="text-[10px] text-gray-400 font-mono mt-0.5 tracking-wider">{line.OrderNumber}</p>
-              </div>
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${statusColors[line.Status]}`}>
-                {statusTexts[line.Status]}
-              </span>
+        {/* CỘT 2: ĐANG CHẾ BIẾN */}
+        <div className="flex-1 min-w-[320px] bg-white rounded-[20px] border border-border flex flex-col shadow-sm">
+          <div className="p-5 flex items-center justify-between border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"></div>
+              <h2 className="text-[15px] font-extrabold text-text-primary">Đang chế biến</h2>
             </div>
-            
-            <div className="mb-4 min-h-[48px]">
-              <h3 className="font-bold text-gray-800 leading-snug">{line.MenuItemName}</h3>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-sm font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md">
-                  SL: {Number(line.Quantity)} {Number(line.Quantity) === 0 ? '?' : ''}
-                </span>
-                <span className="text-xs text-gray-400 font-medium">{format(new Date(line.CreatedAt), 'HH:mm')}</span>
-              </div>
-              {line.Note && <p className="text-sm text-red-500 font-medium mt-2 bg-red-50 p-2 rounded-lg">Note: {line.Note}</p>}
-            </div>
+            <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[11px] font-bold text-text-secondary">
+              {cookingLines.length}
+            </span>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {cookingLines.map(line => (
+              <div key={line.OrderLineID} className="bg-white border border-border rounded-[16px] p-5 shadow-sm">
+                
+                <div className="flex justify-between items-end mb-4">
+                  <span className="font-bold text-[14px] text-text-primary">Bàn {line.TableName}</span>
+                  <span className="text-[12px] font-medium text-text-tertiary">
+                    {getTimeText(line.CreatedAt)}
+                  </span>
+                </div>
+                
+                <div className="mb-5">
+                  <h3 className="font-extrabold text-[16px] text-text-primary leading-snug">
+                    {Number(line.Quantity)}× {line.MenuItemName}
+                  </h3>
+                  {line.Note && (
+                    <p className="text-[12px] font-medium text-text-secondary mt-1.5">{line.Note}</p>
+                  )}
+                </div>
 
-            <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
-              {line.Status === 0 && ( // Mới -> Xác nhận
-                <button onClick={() => handleUpdateStatus(line.OrderLineID, 2)} className="flex-1 py-2 bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 hover:bg-blue-600 active:scale-95 transition-all"><Check size={16}/> Xác nhận</button>
-              )}
-              {line.Status === 1 && ( // Chờ cân -> Nhập TL -> Bếp
-                <button onClick={() => handleWeightInput(line.OrderLineID)} className="flex-1 py-2 bg-purple-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 hover:bg-purple-600 active:scale-95 transition-all"><Scale size={16}/> Cân</button>
-              )}
-              {line.Status === 2 && ( // Đã XN -> Nấu
-                <button onClick={() => handleUpdateStatus(line.OrderLineID, 4)} className="flex-1 py-2 bg-orange-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 hover:bg-orange-600 active:scale-95 transition-all"><Flame size={16}/> Báo Bếp</button>
-              )}
-              {line.Status !== 3 && line.Status !== 4 && ( // Hủy
-                <button onClick={() => handleCancel(line.OrderLineID)} className="py-2 px-3.5 bg-red-50 text-red-600 text-xs font-bold rounded-xl hover:bg-red-100 active:scale-95 transition-all"><X size={16}/></button>
-              )}
+                <button 
+                  onClick={() => handleUpdateStatus(line.OrderLineID, 5)}
+                  className="w-full py-3 bg-[#f59e0b] hover:bg-[#d97706] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
+                >
+                  Đánh dấu xong
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CỘT 3: SẴN SÀNG PHỤC VỤ */}
+        <div className="flex-1 min-w-[320px] bg-bg-page rounded-[20px] border border-border flex flex-col">
+          <div className="p-5 flex items-center justify-between border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></div>
+              <h2 className="text-[15px] font-extrabold text-text-primary">Sẵn sàng phục vụ</h2>
             </div>
+            <span className="w-6 h-6 rounded-full bg-white border border-border flex items-center justify-center text-[11px] font-bold text-text-secondary">
+              {readyLines.length}
+            </span>
           </div>
-        ))}
-        
-        {allLines.length === 0 && (
-          <div className="col-span-full py-10 text-center text-gray-400 border-2 border-dashed rounded-xl border-gray-200">
-            Không có món ăn nào trong danh sách.
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {readyLines.map(line => (
+              <div key={line.OrderLineID} className="bg-white border border-border rounded-[16px] p-5 shadow-sm">
+                
+                <div className="flex justify-between items-end mb-4">
+                  <span className="font-bold text-[14px] text-text-primary">Bàn {line.TableName}</span>
+                  <span className="text-[12px] font-medium text-text-tertiary">xong</span>
+                </div>
+                
+                <div className="mb-5">
+                  <h3 className="font-extrabold text-[16px] text-text-primary leading-snug">
+                    {Number(line.Quantity)}× {line.MenuItemName}
+                  </h3>
+                  {line.Note && (
+                    <p className="text-[12px] font-medium text-text-secondary mt-1.5">{line.Note}</p>
+                  )}
+                </div>
+
+                <button 
+                  onClick={() => handleUpdateStatus(line.OrderLineID, 6)}
+                  className="w-full py-3 bg-transparent border-2 border-[#10b981] text-[#10b981] hover:bg-[#10b981]/5 text-[13px] font-bold rounded-xl transition-all active:scale-95"
+                >
+                  Đã phục vụ
+                </button>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+
       </div>
     </div>
   );

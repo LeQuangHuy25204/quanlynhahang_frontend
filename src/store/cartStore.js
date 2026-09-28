@@ -33,6 +33,6 @@ export const useCartStore = create((set, get) => ({
   clearCart: () => set({ items: [] }),
   getCartTotal: () => {
     const items = get().items;
-    return items.reduce((total, item) => total + (item.finalPrice * (item.isWeightBased ? 1 : item.quantity)), 0);
+    return items.reduce((total, item) => total + (item.finalPrice * item.quantity), 0);
   }
 }));

@@ -3,14 +3,51 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useSessionStore } from '../store/sessionStore';
 import { useCartStore } from '../store/cartStore';
 import { UtensilsCrossed, ShoppingCart, Receipt, Home } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import apiClient from '../api/client';
 
 export default function CustomerLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { table, guestName, status } = useSessionStore();
+  const { table, guestName, status, sessionToken, participantId, sessionId, setSession } = useSessionStore();
   const cartItems = useCartStore((state) => state.items);
   
   const isQrPage = location.pathname.includes('/qr') || location.pathname.includes('/join');
+
+  // Verify session validity
+  useQuery({
+    queryKey: ['verifySession', sessionId],
+    queryFn: async () => {
+      if (!sessionId || isQrPage) return null;
+      try {
+        const res = await apiClient.get(`/sessions/${sessionId}`);
+        const sessionData = res.data.data || res.data;
+        if (sessionData.Status === 2) {
+          // Session is closed
+          setSession({ sessionToken: null, participantId: null, status: null });
+          navigate('/customer/qr');
+        }
+        return sessionData;
+      } catch (err) {
+        // Session not found or invalid
+        setSession({ sessionToken: null, participantId: null, status: null });
+        navigate('/customer/qr');
+        return null;
+      }
+    },
+    enabled: !!sessionId && !isQrPage,
+    refetchInterval: 30000, // check every 30s
+  });
+
+  React.useEffect(() => {
+    if (!isQrPage) {
+      if (!sessionToken) {
+        navigate('/customer/qr');
+      } else if (!participantId) {
+        navigate('/customer/join');
+      }
+    }
+  }, [isQrPage, sessionToken, participantId, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col mx-auto max-w-md shadow-2xl relative">

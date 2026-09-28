@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSessionStore } from '../../store/sessionStore';
 import apiClient from '../../api/client';
 import { toast } from 'sonner';
-import { Clock, RefreshCcw, CheckCircle, Flame, XCircle, FileText } from 'lucide-react';
+import { Clock, RefreshCcw, CheckCircle, Flame, XCircle, FileText, Utensils } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function OrderTracking() {
@@ -14,8 +14,8 @@ export default function OrderTracking() {
 
   const { data: order, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['orderTracking', sessionToken],
-    queryFn: () => apiClient.get(`/orders/session/${sessionToken}`).then(res => res.data),
-    refetchInterval: 10000, // auto refresh every 10s
+    queryFn: () => apiClient.get(`/orders/tracking/${sessionToken}`).then(res => res.data),
+    refetchInterval: 3000, // auto refresh every 3s for real-time feel
     enabled: !!sessionToken
   });
 
@@ -63,6 +63,8 @@ export default function OrderTracking() {
     2: 'bg-blue-100 text-blue-700 border-blue-200',        // Confirmed
     3: 'bg-red-100 text-red-700 border-red-200',           // Cancelled
     4: 'bg-orange-100 text-orange-700 border-orange-200',  // Cooking
+    5: 'bg-teal-100 text-teal-700 border-teal-200',        // Ready
+    6: 'bg-green-100 text-green-700 border-green-200',     // Served
   };
 
   const statusLabels = {
@@ -71,6 +73,8 @@ export default function OrderTracking() {
     2: 'Đã xác nhận',
     3: 'Đã hủy',
     4: 'Đang chế biến',
+    5: 'Chờ phục vụ',
+    6: 'Đã phục vụ',
   };
 
   const statusIcons = {
@@ -79,6 +83,8 @@ export default function OrderTracking() {
     2: <CheckCircle size={14} />,
     3: <XCircle size={14} />,
     4: <Flame size={14} />,
+    5: <Utensils size={14} />,
+    6: <CheckCircle size={14} />,
   };
 
   return (

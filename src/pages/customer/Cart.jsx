@@ -4,7 +4,7 @@ import { useCartStore } from '../../store/cartStore';
 import { useSessionStore } from '../../store/sessionStore';
 import apiClient from '../../api/client';
 import { toast } from 'sonner';
-import { Trash2, ArrowRight } from 'lucide-react';
+import { Trash2, ArrowRight, X, Minus, Plus, ShoppingCart, Info } from 'lucide-react';
 
 export default function Cart() {
   const { items, updateQuantity, removeItem, clearCart, getCartTotal } = useCartStore();
@@ -15,11 +15,17 @@ export default function Cart() {
   const handleSubmitOrder = async () => {
     if (items.length === 0) return;
     
+    if (!participantId) {
+      toast.error('Vui lòng nhập tên trước khi gọi món.');
+      navigate('/customer/join');
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
       const orderItems = items.map(item => ({
         menuItemId: item.menuItemId,
-        quantity: item.isWeightBased ? 0 : item.quantity,
+        quantity: item.quantity,
         note: item.note
       }));
       
@@ -42,52 +48,103 @@ export default function Cart() {
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 mt-20">
-        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6 text-gray-300">
-          <ShoppingCart size={48} />
+      <div className="flex flex-col min-h-screen bg-bg-page relative">
+        <div className="bg-white px-6 py-4 flex items-center justify-between sticky top-0 z-20 border-b border-border shadow-sm">
+          <h2 className="text-[18px] font-extrabold text-text-primary tracking-tight">Giỏ hàng</h2>
+          <button onClick={() => navigate('/customer/menu')} className="w-8 h-8 flex items-center justify-center bg-bg-page rounded-full text-text-secondary hover:bg-gray-200">
+            <X size={20} />
+          </button>
         </div>
-        <p className="text-gray-500 mb-6 text-center">Giỏ hàng của bạn đang trống.</p>
-        <button onClick={() => navigate('/customer/menu')} className="px-6 py-2 bg-primary/10 text-primary font-medium rounded-full">
-          Xem thực đơn
-        </button>
+        <div className="flex flex-col items-center justify-center flex-1 p-6">
+          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 text-primary shadow-inner">
+            <ShoppingCart size={40} />
+          </div>
+          <p className="text-text-secondary font-medium mb-8 text-[15px] text-center">Giỏ hàng của bạn đang trống.</p>
+          <button 
+            onClick={() => navigate('/customer/menu')} 
+            className="w-full max-w-[280px] bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl shadow-md shadow-primary/30 active:scale-95 transition-all"
+          >
+            Quay lại thực đơn
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 pb-32 h-full flex flex-col">
-      <h2 className="text-xl font-bold mb-4">Giỏ hàng</h2>
+    <div className="flex flex-col min-h-screen bg-bg-page relative pb-[240px]">
+      <div className="bg-white px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <h2 className="text-[18px] font-extrabold text-text-primary tracking-tight">Giỏ hàng</h2>
+        <button onClick={() => navigate('/customer/menu')} className="w-8 h-8 flex items-center justify-center bg-bg-page rounded-full text-text-secondary hover:bg-gray-200 transition-colors">
+          <X size={20} />
+        </button>
+      </div>
       
-      <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar">
+      <div className="p-6 flex flex-col gap-4">
         {items.map(item => (
-          <div key={item.cartId} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-3">
-            <div className="w-20 h-20 bg-gray-100 rounded-lg shrink-0 overflow-hidden">
-               {item.imageUrl && <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />}
+          <div key={item.cartId} className="bg-white rounded-[20px] p-4 shadow-sm border border-border flex gap-4 items-start relative group">
+            <div className="w-[84px] h-[84px] bg-bg-page rounded-[14px] overflow-hidden flex-shrink-0">
+               {item.imageUrl ? (
+                 <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+               ) : (
+                 <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-300">
+                   <ShoppingCart size={24} />
+                 </div>
+               )}
             </div>
             
-            <div className="flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start">
-                  <h3 className="font-bold text-sm text-gray-800 leading-tight pr-2">{item.name}</h3>
-                  <button onClick={() => removeItem(item.cartId)} className="text-gray-400 hover:text-danger p-1">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                {item.isWeightBased ? (
-                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium mt-1 inline-block">Món Cân</span>
-                ) : (
-                  <p className="text-primary font-bold text-sm mt-1">
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.finalPrice)}
-                  </p>
-                )}
-                {item.note && <p className="text-xs text-gray-500 italic mt-1 line-clamp-1">"{item.note}"</p>}
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start">
+                <h3 className="text-[15px] font-bold text-text-primary leading-tight pr-6">{item.name}</h3>
+                <button 
+                  onClick={() => removeItem(item.cartId)} 
+                  className="absolute top-4 right-4 text-text-tertiary hover:text-danger p-1 transition-colors active:scale-90"
+                >
+                  <Trash2 size={18} />
+                </button>
               </div>
               
-              {!item.isWeightBased && (
-                <div className="flex items-center gap-3 bg-gray-50 p-1 rounded-lg w-max mt-2">
-                  <button onClick={() => updateQuantity(item.menuItemId, -1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm font-bold text-primary">−</button>
-                  <span className="w-4 text-center font-bold text-sm">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.menuItemId, 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm font-bold text-primary">+</button>
+              {item.isWeightBased ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="bg-info/10 text-info text-[10px] px-2 py-0.5 rounded-md font-bold inline-block">
+                    MÓN CÂN (Tạm tính)
+                  </span>
+                  <p className="text-primary font-bold text-[14px]">
+                    {new Intl.NumberFormat('vi-VN').format(item.finalPrice * item.quantity)}đ
+                  </p>
+                </div>
+              ) : (
+                <p className="text-primary font-bold text-[14px] mt-1">
+                  {new Intl.NumberFormat('vi-VN').format(item.finalPrice)}đ
+                </p>
+              )}
+              
+              {item.note && (
+                <p className="text-[12px] text-text-tertiary italic mt-1.5 line-clamp-1 flex items-center gap-1">
+                  <span className="w-1 h-1 bg-border rounded-full inline-block"></span>
+                  {item.note}
+                </p>
+              )}
+              
+              {item.isWeightBased ? (
+                <div className="flex items-center gap-4 mt-3">
+                  <button onClick={() => {
+                    const newW = prompt('Nhập số cân (kg):', item.quantity);
+                    if (newW && !isNaN(Number(newW)) && Number(newW) > 0) {
+                      updateQuantity(item.menuItemId, Number(newW) - item.quantity);
+                    }
+                  }} className="text-[12px] font-bold text-primary underline">Đổi số cân</button>
+                  <span className="font-bold text-[14px] text-text-primary bg-gray-100 px-2 rounded-md">{item.quantity} kg</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4 mt-3">
+                  <button onClick={() => updateQuantity(item.menuItemId, -1)} className="w-8 h-8 flex items-center justify-center bg-bg-page border border-border rounded-xl text-text-secondary hover:bg-gray-100 active:scale-95 transition-all">
+                    <Minus size={16} strokeWidth={3} />
+                  </button>
+                  <span className="w-6 text-center font-bold text-[15px] text-text-primary">{item.quantity}</span>
+                  <button onClick={() => updateQuantity(item.menuItemId, 1)} className="w-8 h-8 flex items-center justify-center bg-primary-subtle text-primary rounded-xl hover:bg-primary/20 active:scale-95 transition-all">
+                    <Plus size={16} strokeWidth={3} />
+                  </button>
                 </div>
               )}
             </div>
@@ -95,20 +152,23 @@ export default function Cart() {
         ))}
       </div>
       
-      <div className="fixed bottom-16 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-100 p-4 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-        <div className="flex justify-between items-center mb-4">
-          <span className="text-gray-600">Tạm tính (chưa gồm món cân)</span>
-          <span className="text-xl font-bold text-primary">
-            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(getCartTotal())}
+      <div className="fixed bottom-[96px] left-0 right-0 mx-auto w-full max-w-md bg-white border-t border-border p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-30 rounded-t-2xl">
+        <div className="flex justify-between items-end mb-4">
+          <div>
+             <span className="block text-[11px] font-bold text-text-tertiary uppercase tracking-wider mb-1">Tạm tính</span>
+             <span className="text-[12px] text-text-secondary leading-tight">Bao gồm ước tính món cân</span>
+          </div>
+          <span className="text-[24px] font-black text-primary leading-none">
+            {new Intl.NumberFormat('vi-VN').format(getCartTotal())}đ
           </span>
         </div>
         <button 
           onClick={handleSubmitOrder}
           disabled={isSubmitting}
-          className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-70"
+          className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-70 shadow-lg shadow-primary/30"
         >
           {isSubmitting ? <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> : (
-            <>GỬI YÊU CẦU GỌI MÓN <ArrowRight size={20} /></>
+            <>GỬI MÓN XUỐNG BẾP <ArrowRight size={18} strokeWidth={2.5} /></>
           )}
         </button>
       </div>
@@ -116,11 +176,4 @@ export default function Cart() {
   );
 }
 
-// Temporary ShoppingCart icon component for fallback
-const ShoppingCart = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="9" cy="21" r="1"></circle>
-    <circle cx="20" cy="21" r="1"></circle>
-    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-  </svg>
-);
+
