@@ -32,6 +32,8 @@ import Dashboard from '../pages/admin/Dashboard';
 import TableManager from '../pages/admin/TableManager';
 import MenuManager from '../pages/admin/MenuManager';
 import StaffManager from '../pages/admin/StaffManager';
+import PromotionManager from '../pages/admin/PromotionManager';
+import BranchManager from '../pages/admin/BranchManager';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, staff } = useAuthStore();
@@ -88,7 +90,10 @@ export default function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="tables" element={<TableManager />} />
         <Route path="menu" element={<MenuManager />} />
+        <Route path="promotions" element={<PromotionManager />} />
+        <Route path="branches" element={<BranchManager />} />
         <Route path="staff" element={<StaffManager />} />
+        <Route path="config" element={<BranchManager />} />
       </Route>
       
       <Route path="/unauthorized" element={<div className="p-10 text-center">Unauthorized Access</div>} />

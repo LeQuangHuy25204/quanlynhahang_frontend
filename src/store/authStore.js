@@ -9,6 +9,10 @@ export const useAuthStore = create(
       isAuthenticated: false,
       login: (token, staff) => set({ token, staff, isAuthenticated: true }),
       logout: () => set({ token: null, staff: null, isAuthenticated: false }),
+      setBranchId: (branchId) =>
+        set((state) => ({
+          staff: state.staff ? { ...state.staff, branchId: Number(branchId) } : null,
+        })),
     }),
     {
       name: 'auth-storage',
