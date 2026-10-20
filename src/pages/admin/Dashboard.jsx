@@ -48,9 +48,11 @@ export default function Dashboard() {
   // Fetch Branches
   const { data: branchesData } = useQuery({
     queryKey: ['branches'],
-    queryFn: () => apiClient.get('/branches'),
+    queryFn: () => apiClient.get('/branches').then(res => res.data || res),
   });
-  const branches = branchesData?.data || (Array.isArray(branchesData) ? branchesData : []);
+  const branches = Array.isArray(branchesData) 
+    ? branchesData 
+    : (Array.isArray(branchesData?.data) ? branchesData.data : []);
 
   // Calculate Dates based on period
   const { startDate, endDate, periodLabel } = useMemo(() => {

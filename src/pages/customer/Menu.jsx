@@ -17,7 +17,15 @@ export default function Menu() {
   const [selectedItem, setSelectedItem] = useState(null);
   const addItem = useCartStore(state => state.addItem);
 
-  const handleItemClick = (item, e) => {
+  const handleItemClick = (item) => {
+    if (status === 0) {
+      toast.error('Bàn chưa được mở. Vui lòng đợi.');
+      return;
+    }
+    setSelectedItem(item);
+  };
+
+  const handleQuickAdd = (item, e) => {
     if (e) e.stopPropagation();
     if (status === 0) {
       toast.error('Bàn chưa được mở. Vui lòng đợi.');
@@ -29,6 +37,10 @@ export default function Menu() {
       addItem({ ...item, quantity: 1, note: '' });
       toast.success(`Đã thêm ${item.name} vào giỏ`);
     }
+  };
+
+  const handleCallStaff = () => {
+    toast.success(`Đã gửi tín hiệu chuông! Nhân viên phục vụ sẽ đến ${table?.tableName || 'bàn bạn'} ngay.`);
   };
 
   // Calculate cart total
@@ -132,7 +144,7 @@ export default function Menu() {
             <div 
               key={item.menuItemId} 
               className="bg-white rounded-[20px] p-3 shadow-sm border border-border flex gap-4 items-center active:scale-[0.98] transition-transform cursor-pointer group" 
-              onClick={(e) => handleItemClick(item, e)}
+              onClick={() => handleItemClick(item)}
             >
               <div className="w-[84px] h-[84px] bg-bg-page rounded-[14px] overflow-hidden flex-shrink-0 relative">
                 {item.imageUrl ? (
@@ -161,9 +173,10 @@ export default function Menu() {
 
               <div className="self-end pr-2 pb-1">
                 <button 
-                  onClick={(e) => handleItemClick(item, e)}
+                  onClick={(e) => handleQuickAdd(item, e)}
                   className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center shadow-md shadow-primary/30 hover:bg-primary-hover active:scale-90 transition-all disabled:opacity-50"
                   disabled={status === 0}
+                  title="Thêm nhanh 1 phần"
                 >
                   <Plus size={16} strokeWidth={3} />
                 </button>
@@ -182,7 +195,10 @@ export default function Menu() {
       {/* Floating Cart & Staff Button */}
       {status === 1 && (
         <div className="fixed bottom-[100px] left-0 right-0 mx-auto max-w-md px-6 z-30 flex flex-col items-end gap-3 pointer-events-none">
-          <button className="pointer-events-auto bg-white text-primary border border-border shadow-lg px-5 py-2.5 rounded-full font-bold text-[13px] flex items-center gap-2 hover:bg-gray-50 active:scale-95 transition-all">
+          <button 
+            onClick={handleCallStaff}
+            className="pointer-events-auto bg-white text-primary border border-border shadow-lg px-5 py-2.5 rounded-full font-bold text-[13px] flex items-center gap-2 hover:bg-gray-50 active:scale-95 transition-all"
+          >
             <Bell size={16} /> Gọi nhân viên
           </button>
           

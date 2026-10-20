@@ -36,15 +36,18 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
 
   const role = staff?.roleCode;
   const isRestaurantAdmin = role === 'RestaurantAdmin';
+  const isBranchManager = role === 'BranchManager';
 
   // Fetch branches list
   const { data: branchesData } = useQuery({
     queryKey: ['branches'],
-    queryFn: () => apiClient.get('/branches').then(res => res.data),
+    queryFn: () => apiClient.get('/branches').then(res => res.data || res),
   });
-  const branches = branchesData || [];
+  const branches = Array.isArray(branchesData)
+    ? branchesData
+    : (Array.isArray(branchesData?.data) ? branchesData.data : []);
 
-  const currentBranch = branches.find(b => b.BranchID === staff?.branchId) || {
+  const currentBranch = (Array.isArray(branches) ? branches.find(b => b.BranchID === staff?.branchId) : null) || {
     BranchID: staff?.branchId || 1,
     Name: `Chi nhánh ${staff?.branchId || 1}`,
   };
@@ -60,51 +63,137 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
     setDropdownOpen(false);
   };
   
-  const navItems = [
-    { path: '/staff/tables', icon: <Grid size={18} />, label: 'Sơ đồ bàn', roles: ['Waiter', 'Cashier', 'BranchManager', 'RestaurantAdmin'] },
-    { path: '/staff/orders', icon: <Droplet size={18} />, label: 'Gọi món & Chế biến', roles: ['Waiter', 'BranchManager', 'RestaurantAdmin'] },
-    { path: '/cashier', icon: <Grid size={18} />, label: 'Thu ngân', roles: ['Cashier', 'BranchManager', 'RestaurantAdmin'] },
-    { path: '/admin/tables', icon: <Grid size={18} />, label: 'Quản lý bàn & QR', roles: ['BranchManager', 'RestaurantAdmin'] },
-    { path: '/admin/menu', icon: <List size={18} />, label: 'Thực đơn', roles: ['BranchManager', 'RestaurantAdmin'] },
-    { path: '/admin/promotions', icon: <Tag size={18} />, label: 'Khuyến mãi', roles: ['BranchManager', 'RestaurantAdmin'] },
-    { path: '/admin', icon: <BarChart2 size={18} />, label: 'Báo cáo', roles: ['BranchManager', 'RestaurantAdmin'] },
-    { path: '/admin/branches', icon: <MapPin size={18} />, label: 'Chi nhánh', roles: ['RestaurantAdmin'] },
-    { path: '/admin/staff', icon: <Users size={18} />, label: 'Nhân viên', roles: ['BranchManager', 'RestaurantAdmin'] },
-    { path: '/admin/config', icon: <Settings size={18} />, label: 'Cấu hình CN', roles: ['BranchManager', 'RestaurantAdmin'] },
-  ];
+  // Structured role-based navigation sections
+  let navSections = [];
 
-  const filteredNav = navItems.filter(item => item.roles.includes(role));
+  if (isRestaurantAdmin) {
+    navSections = [
+      {
+        title: 'QUẢN TRỊ TOÀN CHUỖI',
+        items: [
+          { path: '/admin', icon: <BarChart2 size={18} />, label: 'Báo cáo chuỗi' },
+          { path: '/admin/branches', icon: <MapPin size={18} />, label: 'Quản lý chi nhánh' },
+          { path: '/admin/menu', icon: <List size={18} />, label: 'Thực đơn & Giá gốc' },
+          { path: '/admin/promotions', icon: <Tag size={18} />, label: 'Khuyến mãi chuỗi' },
+          { path: '/admin/staff', icon: <Users size={18} />, label: 'Nhân sự toàn hệ thống' },
+          { path: '/admin/tables', icon: <Grid size={18} />, label: 'Bàn & Mã QR chuỗi' },
+        ],
+      },
+      {
+        title: 'LỐI TẮT VẬN HÀNH',
+        items: [
+          { path: '/staff/tables', icon: <Grid size={18} />, label: 'Sơ đồ bàn' },
+          { path: '/staff/orders', icon: <Droplet size={18} />, label: 'Gọi món & Chế biến' },
+          { path: '/cashier', icon: <Grid size={18} />, label: 'Thu ngân' },
+        ],
+      },
+    ];
+  } else if (isBranchManager) {
+    navSections = [
+      {
+        title: 'QUẢN LÝ CHI NHÁNH',
+        items: [
+          { path: '/manager', icon: <BarChart2 size={18} />, label: 'Báo cáo chi nhánh' },
+          { path: '/manager/tables', icon: <Grid size={18} />, label: 'Quản lý bàn & QR' },
+          { path: '/manager/menu', icon: <List size={18} />, label: 'Thực đơn chi nhánh' },
+          { path: '/manager/staff', icon: <Users size={18} />, label: 'Nhân viên chi nhánh' },
+          { path: '/manager/config', icon: <Settings size={18} />, label: 'Cấu hình chi nhánh' },
+        ],
+      },
+      {
+        title: 'VẬN HÀNH TẠI BÀN',
+        items: [
+          { path: '/staff/tables', icon: <Grid size={18} />, label: 'Sơ đồ bàn' },
+          { path: '/staff/orders', icon: <Droplet size={18} />, label: 'Gọi món & Chế biến' },
+          { path: '/cashier', icon: <Grid size={18} />, label: 'Thu ngân' },
+        ],
+      },
+    ];
+  } else if (role === 'Cashier') {
+    navSections = [
+      {
+        title: 'THU NGÂN',
+        items: [
+          { path: '/cashier', icon: <Grid size={18} />, label: 'Thu ngân' },
+          { path: '/staff/tables', icon: <Grid size={18} />, label: 'Sơ đồ bàn' },
+        ],
+      },
+    ];
+  } else {
+    // Waiter default
+    navSections = [
+      {
+        title: 'PHỤC VỤ',
+        items: [
+          { path: '/staff/tables', icon: <Grid size={18} />, label: 'Sơ đồ bàn' },
+          { path: '/staff/orders', icon: <Droplet size={18} />, label: 'Gọi món & Chế biến' },
+        ],
+      },
+    ];
+  }
+
+  const isItemActive = (itemPath) => {
+    if (itemPath === '/admin' || itemPath === '/manager') {
+      return location.pathname === itemPath || location.pathname === `${itemPath}/`;
+    }
+    return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
+  };
 
   return (
     <aside className={`bg-white border-r border-gray-200 w-[240px] flex-shrink-0 flex flex-col justify-between fixed md:relative h-[calc(100vh-65px)] md:h-screen z-20 transition-transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div>
-        {/* Brand Header with Interactive Branch Dropdown */}
+        {/* Brand Header with Branch Info */}
         <div ref={dropdownRef} className="relative border-b border-gray-100">
-          <div 
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors select-none"
-            title={isRestaurantAdmin ? "Bấm để đổi chi nhánh làm việc" : currentBranch.Name}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
-                B
+          {isRestaurantAdmin ? (
+            <div 
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors select-none"
+              title="Bấm để đổi chi nhánh làm việc"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
+                  B
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h1 className="font-bold text-[14px] text-text-primary leading-tight truncate">BBQ KLTN</h1>
+                    <span className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">Admin</span>
+                  </div>
+                  <p className="text-[11px] text-primary font-bold mt-0.5 truncate flex items-center gap-1">
+                    <Store size={12} className="shrink-0" />
+                    {currentBranch.Name}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <h1 className="font-bold text-[14px] text-text-primary leading-tight truncate">BBQ KLTN</h1>
-                <p className="text-[11px] text-primary font-bold mt-0.5 truncate flex items-center gap-1">
-                  <Store size={12} className="shrink-0" />
-                  {currentBranch.Name}
-                </p>
+              <ChevronDown 
+                size={16} 
+                className={`text-gray-400 transition-transform duration-200 shrink-0 ml-1 ${dropdownOpen ? 'rotate-180 text-primary' : ''}`} 
+              />
+            </div>
+          ) : (
+            <div className="p-4 flex items-center justify-between select-none">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
+                  B
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h1 className="font-bold text-[14px] text-text-primary leading-tight truncate">BBQ KLTN</h1>
+                    <span className="text-[10px] bg-gray-100 text-gray-600 font-bold px-1.5 py-0.5 rounded">
+                      {isBranchManager ? 'Quản lý' : 'Nhân viên'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-primary font-bold mt-0.5 truncate flex items-center gap-1">
+                    <Store size={12} className="shrink-0" />
+                    {currentBranch.Name}
+                  </p>
+                </div>
               </div>
             </div>
-            <ChevronDown 
-              size={16} 
-              className={`text-gray-400 transition-transform duration-200 shrink-0 ml-1 ${dropdownOpen ? 'rotate-180 text-primary' : ''}`} 
-            />
-          </div>
+          )}
 
-          {/* Dropdown Menu */}
-          {dropdownOpen && (
+          {/* Dropdown Menu for Admin */}
+          {isRestaurantAdmin && dropdownOpen && (
             <div className="absolute left-3 right-3 top-[calc(100%+4px)] bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50 animate-in fade-in zoom-in duration-150">
               <div className="px-2.5 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 Chọn chi nhánh làm việc
@@ -144,45 +233,50 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                 )}
               </div>
 
-              {isRestaurantAdmin && (
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <Link
-                    to="/admin/branches"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-hover px-2 py-1 rounded-lg hover:bg-primary-subtle/50 transition-colors"
-                  >
-                    <Settings size={12} /> Quản lý danh sách chi nhánh
-                  </Link>
-                </div>
-              )}
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <Link
+                  to="/admin/branches"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-hover px-2 py-1 rounded-lg hover:bg-primary-subtle/50 transition-colors"
+                >
+                  <Settings size={12} /> Quản lý danh sách chi nhánh
+                </Link>
+              </div>
             </div>
           )}
         </div>
         
-        {/* Nav Items */}
-        <nav className="px-3 py-3 space-y-1">
-          {filteredNav.map(item => {
-            const isActive = location.pathname === item.path || (item.path === '/admin' && location.pathname.startsWith('/admin') && item.path.length === 6 && location.pathname.length === 6);
-            
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileOpen && setMobileOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors relative ${
-                  isActive 
-                    ? 'bg-primary-subtle text-primary' 
-                    : 'text-text-secondary hover:bg-gray-100 hover:text-text-primary'
-                }`}
-              >
-                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-md"></div>}
-                <div className={`${isActive ? 'text-primary' : 'text-text-tertiary'}`}>
-                  {item.icon}
-                </div>
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+        {/* Nav Items by Section */}
+        <nav className="px-3 py-3 space-y-4">
+          {navSections.map((section, sIdx) => (
+            <div key={sIdx} className="space-y-1">
+              <div className="px-3 py-1 text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">
+                {section.title}
+              </div>
+              {section.items.map((item) => {
+                const isActive = isItemActive(item.path);
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileOpen && setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors relative ${
+                      isActive 
+                        ? 'bg-primary-subtle text-primary font-bold' 
+                        : 'text-text-secondary hover:bg-gray-100 hover:text-text-primary'
+                    }`}
+                  >
+                    {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-md"></div>}
+                    <div className={`${isActive ? 'text-primary' : 'text-text-tertiary'}`}>
+                      {item.icon}
+                    </div>
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </div>
       

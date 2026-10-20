@@ -39,6 +39,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, staff } = useAuthStore();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(staff?.roleCode)) {
+    if (staff?.roleCode === 'BranchManager') {
+      return <Navigate to="/manager" replace />;
+    }
     return <Navigate to="/unauthorized" replace />;
   }
   return children;
@@ -81,8 +84,8 @@ export default function AppRoutes() {
         <Route path="invoice/:paymentId" element={<Invoice />} />
       </Route>
 
-      {/* Admin / Manager Routes */}
-      <Route path="/admin" element={
+      {/* Branch Manager Routes (Dedicated for BranchManager) */}
+      <Route path="/manager" element={
         <ProtectedRoute allowedRoles={['BranchManager', 'RestaurantAdmin']}>
           <AdminLayout />
         </ProtectedRoute>
@@ -90,14 +93,27 @@ export default function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="tables" element={<TableManager />} />
         <Route path="menu" element={<MenuManager />} />
-        <Route path="promotions" element={<PromotionManager />} />
-        <Route path="branches" element={<BranchManager />} />
         <Route path="staff" element={<StaffManager />} />
         <Route path="config" element={<BranchManager />} />
       </Route>
+
+      {/* Restaurant Admin Routes (Dedicated for RestaurantAdmin) */}
+      <Route path="/admin" element={
+        <ProtectedRoute allowedRoles={['RestaurantAdmin']}>
+          <AdminLayout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<Dashboard />} />
+        <Route path="branches" element={<BranchManager />} />
+        <Route path="menu" element={<MenuManager />} />
+        <Route path="promotions" element={<PromotionManager />} />
+        <Route path="staff" element={<StaffManager />} />
+        <Route path="tables" element={<TableManager />} />
+        <Route path="config" element={<BranchManager />} />
+      </Route>
       
-      <Route path="/unauthorized" element={<div className="p-10 text-center">Unauthorized Access</div>} />
-      <Route path="*" element={<div className="p-10 text-center">404 Not Found</div>} />
+      <Route path="/unauthorized" element={<div className="p-10 text-center font-bold text-gray-600">Bạn không có quyền truy cập trang này.</div>} />
+      <Route path="*" element={<div className="p-10 text-center font-bold text-gray-600">404 - Không tìm thấy trang.</div>} />
     </Routes>
   );
 }

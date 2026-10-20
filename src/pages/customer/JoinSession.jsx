@@ -54,7 +54,8 @@ export default function JoinSession() {
       const res = await apiClient.post('/sessions/join', {
         sessionCode: sessionToken,
         guestName: guestName.trim(),
-        branchId
+        branchId,
+        guestCount: Number(guestCount)
       });
       
       setSession({

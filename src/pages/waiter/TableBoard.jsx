@@ -61,11 +61,29 @@ export default function TableBoard() {
     }
   };
 
-  const handleCloseTable = async () => {
+  const handleRequestPayment = async () => {
     if (!selectedTableForOrder) return;
     try {
+      const activeOrderId = selectedTableForOrder.Session?.Order?.OrderID || selectedTableForOrder.Session?.OrderID;
+      if (activeOrderId) {
+        await apiClient.post(`/orders/${activeOrderId}/staff-request-payment`);
+        toast.success('Đã gửi yêu cầu thanh toán tới quầy Thu ngân!');
+      } else {
+        toast.info('Bàn chưa có đơn món nào.');
+      }
+      setSelectedTableForOrder(null);
+      refetch();
+    } catch (err) {
+      toast.error(err.message || 'Lỗi gửi yêu cầu thanh toán');
+    }
+  };
+
+  const handleForceCloseTable = async () => {
+    if (!selectedTableForOrder) return;
+    if (!window.confirm('CẢNH BÁO: Đóng bàn trực tiếp sẽ không lưu hóa đơn qua Thu ngân. Bạn có chắc chắn muốn đóng bàn này không?')) return;
+    try {
       await apiClient.put(`/sessions/${selectedTableForOrder.Session.SessionID}/status`, { status: 2 });
-      toast.success('Đã đóng bàn / thanh toán thành công');
+      toast.success('Đã đóng bàn');
       setSelectedTableForOrder(null);
       refetch();
     } catch (err) {
@@ -396,10 +414,17 @@ export default function TableBoard() {
                   Chuyển / Gộp bàn
                 </button>
                 <button 
-                  onClick={handleCloseTable}
-                  className="px-4 py-2 bg-primary-subtle text-primary text-[13px] font-bold rounded-lg hover:bg-primary/20"
+                  onClick={handleRequestPayment}
+                  className="px-4 py-2 bg-warning text-white text-[13px] font-bold rounded-lg hover:bg-warning/90 shadow-sm active:scale-95 transition-all"
                 >
-                  Đóng bàn
+                  Yêu cầu tính tiền
+                </button>
+                <button 
+                  onClick={handleForceCloseTable}
+                  className="px-3 py-2 bg-gray-100 text-gray-500 hover:text-danger text-[12px] font-semibold rounded-lg hover:bg-gray-200 transition-all"
+                  title="Chỉ dùng khi bàn mở nhầm hoặc có sự cố"
+                >
+                  Đóng bàn sự cố
                 </button>
               </div>
             </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
+import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { ArrowLeft, Receipt, Gift, CreditCard, Wallet, Landmark } from 'lucide-react';
 import { format } from 'date-fns';
@@ -21,13 +22,11 @@ export default function Checkout() {
   // BUT what if we want to apply promotion BEFORE creating invoice? 
   // We need to fetch order details. We can use the staff order API filtering by this order.
   
+  const { staff } = useAuthStore();
   const { data: orderData, isLoading } = useQuery({
-    queryKey: ['orderDetail', orderId],
+    queryKey: ['orderDetail', orderId, staff?.branchId],
     queryFn: async () => {
-      // Find order from branch list (hacky but works since we don't have GET /orders/:id)
-      const res = await apiClient.get(`/orders?branchId=1&status=3`); // Wait, branchId should be dynamic but we are Admin/Cashier, let's fetch without branchId if possible?
-      // Since backend requires branchId, we need staff's branch.
-      // Wait, let's just get from localStorage or global state. Let's just return it.
+      const res = await apiClient.get(`/orders?branchId=${staff?.branchId || 1}&status=3`);
       return res.data; 
     }
   });

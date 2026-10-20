@@ -29,9 +29,11 @@ export default function BranchManager() {
   // Queries
   const { data: branchesData, isLoading: loadingBranches } = useQuery({
     queryKey: ['branches'],
-    queryFn: () => apiClient.get('/branches').then(res => res.data),
+    queryFn: () => apiClient.get('/branches').then(res => res.data || res),
   });
-  const branches = branchesData || [];
+  const branches = Array.isArray(branchesData) 
+    ? branchesData 
+    : (Array.isArray(branchesData?.data) ? branchesData.data : []);
 
   // Mutations
   const createBranchMutation = useMutation({
@@ -109,6 +111,10 @@ export default function BranchManager() {
     }
   };
 
+  const visibleBranches = isRestaurantAdmin
+    ? branches
+    : branches.filter((b) => b.BranchID === (staff?.branchId || 1));
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -116,12 +122,12 @@ export default function BranchManager() {
         <div>
           <h1 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
             <MapPin className="text-primary" size={26} />
-            Quản lý & Cấu hình Chi nhánh
+            {isRestaurantAdmin ? 'Quản lý & Cấu hình Chi nhánh' : 'Cấu hình Chi nhánh'}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             {isRestaurantAdmin
               ? 'Quản lý toàn bộ chi nhánh, thiết lập thuế suất VAT, phí dịch vụ và thông tin vận hành'
-              : 'Cập nhật giờ mở cửa, thông tin liên hệ và vận hành chi nhánh'}
+              : 'Cập nhật giờ mở cửa, thông tin liên hệ và vận hành chi nhánh của bạn'}
           </p>
         </div>
 
@@ -141,12 +147,12 @@ export default function BranchManager() {
           <div className="col-span-full py-12 text-center text-gray-400 font-medium">
             Đang tải danh sách chi nhánh...
           </div>
-        ) : branches.length === 0 ? (
+        ) : visibleBranches.length === 0 ? (
           <div className="col-span-full py-12 text-center text-gray-400 font-medium bg-white rounded-2xl border border-gray-100">
             Chưa có chi nhánh nào.
           </div>
         ) : (
-          branches.map((b) => {
+          visibleBranches.map((b) => {
             const isActive = b.IsActive === 1;
 
             return (

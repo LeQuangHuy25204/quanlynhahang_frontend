@@ -38,9 +38,11 @@ export default function StaffManager() {
   // Queries
   const { data: branchesData } = useQuery({
     queryKey: ['branches'],
-    queryFn: () => apiClient.get('/branches').then(res => res.data),
+    queryFn: () => apiClient.get('/branches').then(res => res.data || res),
   });
-  const branches = branchesData || [];
+  const branches = Array.isArray(branchesData) 
+    ? branchesData 
+    : (Array.isArray(branchesData?.data) ? branchesData.data : []);
 
   const { data: staffData, isLoading: loadingStaff } = useQuery({
     queryKey: ['staffList', selectedBranchId],

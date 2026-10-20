@@ -145,16 +145,24 @@ export default function OrderTracking() {
         <p className="text-[10px] text-gray-400 text-right">Chưa bao gồm thuế và phí dịch vụ</p>
       </div>
 
-      <button 
-        onClick={handleRequestPayment}
-        disabled={isRequesting || order.Status === 3}
-        className={`w-full font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 ${
-          order.Status === 3 ? 'bg-green-100 text-green-700' : 'bg-primary text-white hover:bg-primary/90 active:scale-[0.98]'
-        }`}
-      >
-        {isRequesting ? <span className="animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full" /> : null}
-        {order.Status === 3 ? 'ĐÃ YÊU CẦU THANH TOÁN' : 'GỌI THANH TOÁN'}
-      </button>
+      <div className="flex gap-3 mb-2">
+        <button 
+          onClick={() => navigate('/customer/menu')}
+          className="flex-1 font-bold py-3.5 rounded-xl border-2 border-primary text-primary hover:bg-primary-subtle transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+        >
+          <Utensils size={18} /> Gọi thêm món
+        </button>
+        <button 
+          onClick={handleRequestPayment}
+          disabled={isRequesting || order.Status === 3}
+          className={`flex-1 font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 ${
+            order.Status === 3 ? 'bg-green-100 text-green-700' : 'bg-primary text-white hover:bg-primary/90 active:scale-[0.98]'
+          }`}
+        >
+          {isRequesting ? <span className="animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full" /> : null}
+          {order.Status === 3 ? 'ĐÃ GỌI TÍNH TIỀN' : 'GỌI THANH TOÁN'}
+        </button>
+      </div>
     </div>
   );
 }

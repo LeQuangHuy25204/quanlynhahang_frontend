@@ -24,7 +24,8 @@ export default function Login() {
       
       if (staff.roleCode === 'Waiter') navigate('/staff/tables');
       else if (staff.roleCode === 'Cashier') navigate('/cashier');
-      else if (staff.roleCode === 'BranchManager' || staff.roleCode === 'RestaurantAdmin') navigate('/admin');
+      else if (staff.roleCode === 'BranchManager') navigate('/manager');
+      else if (staff.roleCode === 'RestaurantAdmin') navigate('/admin');
       
       toast.success('Đăng nhập thành công');
     } catch (err) {

@@ -31,6 +31,18 @@ export default function OrderBoard() {
     }
   };
 
+  const handleCancelLine = async (orderLineId, itemName) => {
+    const reason = prompt(`Nhập lý do hủy món "${itemName}":`, 'Hết nguyên liệu');
+    if (reason === null) return;
+    try {
+      await apiClient.patch(`/orders/lines/${orderLineId}/cancel`, { cancelReason: reason || 'Bếp hủy món' });
+      toast.success(`Đã hủy món "${itemName}"`);
+      refetch();
+    } catch (err) {
+      toast.error(err.message || 'Lỗi hủy món');
+    }
+  };
+
   const handleWeightInput = async (orderLineId) => {
     const weight = prompt('Nhập khối lượng thực tế (kg):', '1.0');
     if (!weight) return;
@@ -128,19 +140,37 @@ export default function OrderBoard() {
                 </div>
 
                 {line.Status === 1 ? (
-                  <button 
-                    onClick={() => handleWeightInput(line.OrderLineID)}
-                    className="w-full py-3 bg-[#f97316] hover:bg-[#ea580c] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
-                  >
-                    Nhập số cân
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleCancelLine(line.OrderLineID, line.MenuItemName)}
+                      className="px-3 py-3 border border-red-200 text-red-600 hover:bg-red-50 text-[12px] font-bold rounded-xl transition-all active:scale-95"
+                      title="Hủy món này"
+                    >
+                      Hủy
+                    </button>
+                    <button 
+                      onClick={() => handleWeightInput(line.OrderLineID)}
+                      className="flex-1 py-3 bg-[#f97316] hover:bg-[#ea580c] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
+                    >
+                      Nhập số cân
+                    </button>
+                  </div>
                 ) : (
-                  <button 
-                    onClick={() => handleUpdateStatus(line.OrderLineID, 2)}
-                    className="w-full py-3 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
-                  >
-                    Xác nhận
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleCancelLine(line.OrderLineID, line.MenuItemName)}
+                      className="px-3 py-3 border border-red-200 text-red-600 hover:bg-red-50 text-[12px] font-bold rounded-xl transition-all active:scale-95"
+                      title="Hủy món này"
+                    >
+                      Hủy
+                    </button>
+                    <button 
+                      onClick={() => handleUpdateStatus(line.OrderLineID, 2)}
+                      className="flex-1 py-3 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
+                    >
+                      Xác nhận
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -179,12 +209,21 @@ export default function OrderBoard() {
                   )}
                 </div>
 
-                <button 
-                  onClick={() => handleUpdateStatus(line.OrderLineID, 5)}
-                  className="w-full py-3 bg-[#f59e0b] hover:bg-[#d97706] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
-                >
-                  Đánh dấu xong
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleCancelLine(line.OrderLineID, line.MenuItemName)}
+                    className="px-3 py-3 border border-red-200 text-red-600 hover:bg-red-50 text-[12px] font-bold rounded-xl transition-all active:scale-95"
+                    title="Hủy món này"
+                  >
+                    Hủy
+                  </button>
+                  <button 
+                    onClick={() => handleUpdateStatus(line.OrderLineID, 5)}
+                    className="flex-1 py-3 bg-[#f59e0b] hover:bg-[#d97706] text-white text-[13px] font-bold rounded-xl transition-all shadow-sm active:scale-95"
+                  >
+                    Đánh dấu xong
+                  </button>
+                </div>
               </div>
             ))}
           </div>
