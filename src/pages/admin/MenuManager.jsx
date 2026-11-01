@@ -12,6 +12,7 @@ export default function MenuManager() {
   const queryClient = useQueryClient();
   const { staff } = useAuthStore();
   const isRestaurantAdmin = staff?.roleCode === 'RestaurantAdmin';
+  const isBranchManager = staff?.roleCode === 'BranchManager';
   
   // State
   const [selectedBranchId, setSelectedBranchId] = useState(staff?.branchId || 1);
@@ -30,6 +31,7 @@ export default function MenuManager() {
   const [editingItem, setEditingItem] = useState(null); // null = create, object = edit
   const [itemForm, setItemForm] = useState({
     name: '',
+    branchId: '',
     categoryId: '',
     basePrice: '',
     description: '',
@@ -120,6 +122,7 @@ export default function MenuManager() {
     setEditingItem(null);
     setItemForm({
       name: '',
+      branchId: isBranchManager ? String(staff?.branchId || 1) : '',
       categoryId: categories[0]?.categoryId || '',
       basePrice: '',
       description: '',
@@ -134,6 +137,7 @@ export default function MenuManager() {
     setEditingItem(item);
     setItemForm({
       name: item.name,
+      branchId: item.branchId != null ? String(item.branchId) : '',
       categoryId: item.categoryId,
       basePrice: item.basePrice,
       description: item.description || '',
@@ -161,6 +165,7 @@ export default function MenuManager() {
     }
     const payload = {
       name: itemForm.name,
+      branchId: isBranchManager ? (staff?.branchId || null) : (itemForm.branchId ? Number(itemForm.branchId) : null),
       categoryId: Number(itemForm.categoryId),
       basePrice: Number(itemForm.basePrice),
       description: itemForm.description,
@@ -230,12 +235,12 @@ export default function MenuManager() {
             </div>
           )}
 
-          {isRestaurantAdmin && activeTab === 'items' && (
+          {(isRestaurantAdmin || isBranchManager) && activeTab === 'items' && (
             <button
               onClick={handleOpenCreateItem}
               className="bg-primary hover:bg-primary-hover text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-all active:scale-95"
             >
-              <Plus size={18} /> Thêm món mới
+              <Plus size={18} /> {isBranchManager ? 'Thêm món riêng chi nhánh' : 'Thêm món mới'}
             </button>
           )}
 
@@ -367,6 +372,15 @@ export default function MenuManager() {
                               <div>
                                 <div className="font-bold text-gray-800 text-sm flex items-center gap-2">
                                   {item.name}
+                                  {item.branchId ? (
+                                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                                      Món riêng CN
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+                                      Toàn chuỗi
+                                    </span>
+                                  )}
                                   {item.isWeightBased && (
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">
                                       Theo cân
@@ -422,21 +436,23 @@ export default function MenuManager() {
 
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              {/* Override Button (Manager & Admin) */}
-                              <button
-                                onClick={() => handleOpenOverride(item)}
-                                title="Cài đặt giá và tình trạng chi nhánh"
-                                className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors flex items-center gap-1"
-                              >
-                                <DollarSign size={14} className="text-primary" />
-                                Cài đặt CN
-                              </button>
+                              {/* Override Button (Manager & Admin): For chain items */}
+                              {(!item.branchId || isRestaurantAdmin) && (
+                                <button
+                                  onClick={() => handleOpenOverride(item)}
+                                  title="Cài đặt giá và tình trạng chi nhánh"
+                                  className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors flex items-center gap-1"
+                                >
+                                  <DollarSign size={14} className="text-primary" />
+                                  Cài đặt CN
+                                </button>
+                              )}
 
-                              {/* Edit Base Item Button (Restaurant Admin Only) */}
-                              {isRestaurantAdmin && (
+                              {/* Edit Base/Exclusive Item Button */}
+                              {(isRestaurantAdmin || (isBranchManager && item.branchId === staff?.branchId)) && (
                                 <button
                                   onClick={() => handleOpenEditItem(item)}
-                                  title="Chỉnh sửa món gốc"
+                                  title={item.branchId ? "Chỉnh sửa món riêng chi nhánh" : "Chỉnh sửa món gốc"}
                                   className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                                 >
                                   <Edit3 size={16} />
@@ -486,7 +502,9 @@ export default function MenuManager() {
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-150">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h2 className="font-black text-lg text-gray-800">
-                {editingItem ? 'Chỉnh sửa Món Ăn Gốc' : 'Thêm Món Ăn Mới (Cấp Nhà Hàng)'}
+                {editingItem 
+                  ? (editingItem.branchId ? 'Chỉnh sửa món riêng chi nhánh' : 'Chỉnh sửa món ăn toàn chuỗi')
+                  : (isBranchManager ? 'Thêm món ăn riêng cho chi nhánh' : 'Thêm món ăn mới')}
               </h2>
               <button onClick={() => setItemModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
@@ -494,6 +512,29 @@ export default function MenuManager() {
             </div>
 
             <form onSubmit={handleSubmitItem} className="p-6 space-y-4">
+              {isRestaurantAdmin && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Phạm vi phục vụ</label>
+                  <select
+                    value={itemForm.branchId}
+                    onChange={(e) => setItemForm({ ...itemForm, branchId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-primary bg-white font-semibold"
+                  >
+                    <option value="">Toàn bộ chuỗi (Tất cả chi nhánh)</option>
+                    {branches.map((b) => (
+                      <option key={b.BranchID} value={b.BranchID}>Chỉ riêng chi nhánh: {b.Name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {isBranchManager && (
+                <div className="p-3 bg-purple-50/70 border border-purple-100 rounded-xl flex items-center justify-between text-xs">
+                  <span className="font-bold text-purple-900">Chi nhánh:</span>
+                  <span className="font-black text-purple-700">Món riêng của chi nhánh {staff?.branchId}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1">Tên món ăn *</label>
                 <input

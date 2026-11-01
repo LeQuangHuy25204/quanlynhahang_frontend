@@ -63,9 +63,9 @@ export default function AppRoutes() {
         <Route path="payment-waiting" element={<PaymentWaiting />} />
       </Route>
 
-      {/* Waiter Routes */}
+      {/* Staff / Table Board Routes */}
       <Route path="/staff" element={
-        <ProtectedRoute allowedRoles={['Waiter', 'BranchManager', 'RestaurantAdmin']}>
+        <ProtectedRoute allowedRoles={['Waiter', 'Cashier', 'BranchManager', 'RestaurantAdmin']}>
           <StaffLayout />
         </ProtectedRoute>
       }>
@@ -93,6 +93,7 @@ export default function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="tables" element={<TableManager />} />
         <Route path="menu" element={<MenuManager />} />
+        <Route path="promotions" element={<PromotionManager />} />
         <Route path="staff" element={<StaffManager />} />
         <Route path="config" element={<BranchManager />} />
       </Route>

@@ -96,6 +96,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
           { path: '/manager', icon: <BarChart2 size={18} />, label: 'Báo cáo chi nhánh' },
           { path: '/manager/tables', icon: <Grid size={18} />, label: 'Quản lý bàn & QR' },
           { path: '/manager/menu', icon: <List size={18} />, label: 'Thực đơn chi nhánh' },
+          { path: '/manager/promotions', icon: <Tag size={18} />, label: 'Khuyến mãi chi nhánh' },
           { path: '/manager/staff', icon: <Users size={18} />, label: 'Nhân viên chi nhánh' },
           { path: '/manager/config', icon: <Settings size={18} />, label: 'Cấu hình chi nhánh' },
         ],
@@ -205,6 +206,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                 ) : (
                   branches.map((b) => {
                     const isSelected = staff?.branchId === b.BranchID;
+                    const isActive = b.IsActive === 1 || b.IsActive === true;
 
                     return (
                       <button
@@ -217,7 +219,14 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                         }`}
                       >
                         <div className="min-w-0 pr-2">
-                          <p className="truncate text-[13px]">{b.Name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-[13px]">{b.Name}</p>
+                            {!isActive && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 font-bold shrink-0">
+                                Tạm dừng
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-gray-400 font-normal truncate mt-0.5">
                             {b.Address || `Mã CN: #${b.BranchID}`}
                           </p>

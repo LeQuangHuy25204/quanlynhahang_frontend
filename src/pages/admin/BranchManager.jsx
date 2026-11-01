@@ -78,11 +78,11 @@ export default function BranchManager() {
       name: b.Name,
       address: b.Address || '',
       phone: b.Phone || '',
-      bussinessStartHour: b.BussinessStartHour || '10:00:00',
+      bussinessStartHour: b.BussinessStartHour ? String(b.BussinessStartHour).substring(0, 8) : '10:00:00',
       vatRate: b.VATRate != null ? Number(b.VATRate) : 8,
       serviceFeeRate: b.ServiceFeeRate != null ? Number(b.ServiceFeeRate) : 5,
       taxCode: b.TaxCode || '',
-      isActive: b.IsActive === 1,
+      isActive: b.IsActive === 1 || b.IsActive === true,
     });
     setModalOpen(true);
   };
@@ -153,36 +153,40 @@ export default function BranchManager() {
           </div>
         ) : (
           visibleBranches.map((b) => {
-            const isActive = b.IsActive === 1;
+            const isActive = b.IsActive === 1 || b.IsActive === true;
 
             return (
               <div
                 key={b.BranchID}
                 className={`p-6 rounded-2xl bg-white border transition-all hover:shadow-md flex flex-col justify-between ${
-                  isActive ? 'border-gray-100' : 'border-gray-200 bg-gray-50/60 opacity-75'
+                  isActive ? 'border-gray-100' : 'border-amber-200/70 bg-amber-50/15'
                 }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg shrink-0">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shrink-0 ${
+                        isActive ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-400'
+                      }`}>
                         <Building2 size={24} />
                       </div>
                       <div>
-                        <h3 className="font-black text-xl text-gray-800">{b.Name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className={`font-black text-xl ${isActive ? 'text-gray-800' : 'text-gray-600'}`}>{b.Name}</h3>
+                        </div>
                         <p className="text-xs text-gray-400 mt-0.5">Mã CN: #{b.BranchID}</p>
                       </div>
                     </div>
 
                     <span
-                      className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${
+                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${
                         isActive
                           ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                          : 'text-gray-500 bg-gray-100 border-gray-200'
+                          : 'text-amber-800 bg-amber-50 border-amber-200'
                       }`}
                     >
-                      {isActive ? <Check size={12} /> : <X size={12} />}
-                      {isActive ? 'Hoạt động' : 'Tạm dừng'}
+                      {isActive ? <Check size={13} /> : <X size={13} />}
+                      {isActive ? 'Hoạt động' : 'Không hoạt động'}
                     </span>
                   </div>
 

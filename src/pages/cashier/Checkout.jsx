@@ -36,12 +36,17 @@ export default function Checkout() {
     queryFn: () => apiClient.get('/promotions').then(res => res.data)
   });
 
+  const currentOrder = Array.isArray(orderData)
+    ? orderData.find(o => String(o.OrderID) === String(orderId))
+    : null;
+
   const handleCheckout = async () => {
     setIsProcessing(true);
     try {
       // Create Payment & Invoice
       const res = await apiClient.post('/payments/checkout', {
         orderId: Number(orderId),
+        sessionId: currentOrder?.SessionID,
         promotionId: promotionId ? Number(promotionId) : null
       });
       
@@ -92,11 +97,22 @@ export default function Checkout() {
             className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           >
             <option value="">-- Không áp dụng --</option>
-            {promotions.map(p => (
-              <option key={p.PromotionID} value={p.PromotionID}>
-                {p.Name} (Giảm {p.DiscountValue}{p.DiscountType === 'PERCENT' ? '%' : 'đ'})
-              </option>
-            ))}
+            {promotions.filter(p => p.IsActive === 1).map(p => {
+              const scope = p.ApplyLevel === 'MENU_ITEM'
+                ? ` · Món: ${(p.MenuItems || []).map(m => m.Name).join(', ')}`
+                : p.ApplyLevel === 'CATEGORY'
+                  ? ` · Danh mục: ${p.TargetCategoryName || ''}`
+                  : '';
+              const conds = [
+                Number(p.MinOrderAmount) > 0 ? `HĐ từ ${new Intl.NumberFormat('vi-VN').format(p.MinOrderAmount)}đ` : null,
+                Number(p.MinItemCount) > 0 ? `từ ${p.MinItemCount} món` : null,
+              ].filter(Boolean);
+              return (
+                <option key={p.PromotionID} value={p.PromotionID}>
+                  {p.Name} (Giảm {p.DiscountValue}{p.DiscountType === 'PERCENT' ? '%' : 'đ'}){scope}{conds.length ? ` · Điều kiện: ${conds.join(', ')}` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 
