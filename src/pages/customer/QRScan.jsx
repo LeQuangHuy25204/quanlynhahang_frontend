@@ -51,20 +51,32 @@ export default function QRScan() {
         qrCode: codeToUse, 
         branchId: Number(branchToUse) 
       });
-      const { sessionId, sessionToken, joinCode, status, table } = res.data.data || res.data;
-      
-      if (currentSessionToken !== sessionToken) {
-        setSession({ participantId: null, guestName: null });
-        clearCart();
-      }
-
-      setSession({
+      const {
         sessionId,
         sessionToken,
         joinCode,
         status,
         table,
-        branchId: Number(branchToUse)
+        requiresJoinCode,
+        participantCount,
+        hostName,
+      } = res.data.data || res.data;
+
+      clearCart();
+
+      setSession({
+        sessionId,
+        sessionToken: sessionToken || null,
+        joinCode: joinCode || null,
+        status,
+        table,
+        branchId: Number(branchToUse),
+        requiresJoinCode: Boolean(requiresJoinCode),
+        participantCount: participantCount || 0,
+        hostName: hostName || null,
+        participantId: null,
+        guestName: null,
+        isHost: !requiresJoinCode,
       });
       
       toast.success(`Đã nhận diện Bàn ${table?.tableName || ''}!`);

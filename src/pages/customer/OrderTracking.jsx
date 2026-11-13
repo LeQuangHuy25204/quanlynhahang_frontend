@@ -103,7 +103,14 @@ export default function OrderTracking() {
         {order.lines.map((line, idx) => (
           <div key={`${line.OrderLineID}-${idx}`} className={`bg-white p-3 rounded-xl shadow-sm border ${line.Status === 3 ? 'opacity-60 border-red-100' : 'border-gray-100'}`}>
             <div className="flex justify-between items-start mb-2">
-              <h3 className="font-bold text-sm text-gray-800 pr-2">{line.MenuItemName}</h3>
+              <div className="pr-2">
+                <h3 className="font-bold text-sm text-gray-800">{line.MenuItemName}</h3>
+                {line.GuestName && (
+                  <span className="inline-block text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full mt-1">
+                    Người gọi: {line.GuestName}
+                  </span>
+                )}
+              </div>
               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold whitespace-nowrap ${statusColors[line.Status]}`}>
                 {statusIcons[line.Status]}
                 {statusLabels[line.Status]}
