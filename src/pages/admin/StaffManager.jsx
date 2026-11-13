@@ -277,19 +277,36 @@ export default function StaffManager() {
                       </td>
 
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleToggleStatus(s)}
-                          disabled={toggleStatusMutation.isPending || s.StaffID === currentStaff?.staffId}
-                          title={s.StaffID === currentStaff?.staffId ? 'Không thể tự khóa chính mình' : (isActive ? 'Nhấn để khóa tài khoản' : 'Nhấn để mở tài khoản')}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ml-auto disabled:opacity-40 disabled:cursor-not-allowed ${
-                            isActive
-                              ? 'border-gray-200 text-gray-600 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50'
-                              : 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                          }`}
-                        >
-                          {isActive ? <Lock size={13} /> : <Unlock size={13} />}
-                          <span>{isActive ? 'Khóa' : 'Mở khóa'}</span>
-                        </button>
+                        {(() => {
+                          const isSelf = s.StaffID === currentStaff?.staffId;
+                          const isHigherOrEqualRole =
+                            !isRestaurantAdmin &&
+                            (s.RoleCode === 'RestaurantAdmin' || s.RoleCode === 'BranchManager');
+                          const isDisabled = toggleStatusMutation.isPending || isSelf || isHigherOrEqualRole;
+                          const tooltipText = isSelf
+                            ? 'Không thể tự khóa chính mình'
+                            : isHigherOrEqualRole
+                              ? 'Quản lý chi nhánh không có quyền khóa/mở khóa Quản trị viên hoặc Quản lý'
+                              : isActive
+                                ? 'Nhấn để khóa tài khoản'
+                                : 'Nhấn để mở tài khoản';
+
+                          return (
+                            <button
+                              onClick={() => !isDisabled && handleToggleStatus(s)}
+                              disabled={isDisabled}
+                              title={tooltipText}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ml-auto disabled:opacity-40 disabled:cursor-not-allowed ${
+                                isActive
+                                  ? 'border-gray-200 text-gray-600 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50'
+                                  : 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                              }`}
+                            >
+                              {isActive ? <Lock size={13} /> : <Unlock size={13} />}
+                              <span>{isActive ? 'Khóa' : 'Mở khóa'}</span>
+                            </button>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );

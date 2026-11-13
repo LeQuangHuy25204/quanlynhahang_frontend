@@ -141,10 +141,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
   };
 
   return (
-    <aside className={`bg-white border-r border-gray-200 w-[240px] flex-shrink-0 flex flex-col justify-between fixed md:relative h-[calc(100vh-65px)] md:h-screen z-20 transition-transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-      <div>
-        {/* Brand Header with Branch Info */}
-        <div ref={dropdownRef} className="relative border-b border-gray-100">
+    <aside className={`bg-white border-r border-gray-200 w-[240px] flex-shrink-0 flex flex-col justify-between fixed md:sticky md:top-0 h-screen z-20 transition-transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      {/* Brand Header with Branch Info */}
+      <div ref={dropdownRef} className="relative border-b border-gray-100 shrink-0">
           {isRestaurantAdmin ? (
             <div 
               onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -254,8 +253,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
             </div>
           )}
         </div>
-        
-        {/* Nav Items by Section */}
+      
+      {/* Scrollable Nav Area */}
+      <div className="flex-1 overflow-y-auto min-h-0">
         <nav className="px-3 py-3 space-y-4">
           {navSections.map((section, sIdx) => (
             <div key={sIdx} className="space-y-1">
@@ -290,7 +290,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       </div>
       
       {/* Footer / User Profile */}
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 shrink-0 bg-white">
         <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors" onClick={handleLogout}>
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-full bg-text-primary text-white flex items-center justify-center font-bold text-xs shrink-0">

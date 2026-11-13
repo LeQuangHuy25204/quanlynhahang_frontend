@@ -32,8 +32,8 @@ export default function AdminLayout() {
       <Sidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-gray-50 p-4 md:p-8">
-        <div className="max-w-6xl mx-auto">
+      <main className="flex-1 min-w-0 bg-gray-50 p-4 md:p-8">
+        <div className="max-w-[1440px] mx-auto w-full">
           <Outlet />
         </div>
       </main>
