@@ -6,8 +6,8 @@ import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
-  const [username, setUsername] = useState('waiter1'); // default for testing
-  const [password, setPassword] = useState('123456');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -124,12 +124,6 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <a href="#" className="text-[13px] font-bold text-primary hover:text-primary-hover transition-colors">
-                Quên mật khẩu?
-              </a>
-            </div>
-
             <button
               type="submit"
               disabled={isLoading}
@@ -138,11 +132,6 @@ export default function Login() {
               {isLoading ? <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> : 'Đăng nhập'}
             </button>
           </form>
-          
-          <div className="mt-8 pt-6 border-t border-border text-center">
-            <p className="text-[13px] font-medium text-text-tertiary">Demo accounts (pw: 123456):</p>
-            <p className="text-[13px] font-bold text-text-secondary mt-1">admin1, manager1, cashier1, waiter1</p>
-          </div>
         </div>
       </div>
     </div>

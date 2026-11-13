@@ -28,11 +28,11 @@ export default function CustomerLayout() {
 
   // Verify session validity & sync status / joinCode / participants
   useQuery({
-    queryKey: ['verifySession', sessionId],
+    queryKey: ['verifySession', sessionId, participantId],
     queryFn: async () => {
       if (!sessionId || isQrPage) return null;
       try {
-        const res = await apiClient.get(`/sessions/${sessionId}`);
+        const res = await apiClient.get(`/sessions/${sessionId}?participantId=${participantId || ''}`);
         const sessionData = res.data || res;
         if (sessionData.Status === 2) {
           // Session is closed

@@ -34,6 +34,9 @@ export default function TableManager() {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [activeQrTable, setActiveQrTable] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const CLOUD_URL = 'https://quanlynhahang-app-production.up.railway.app';
+  const qrHostOrigin = isLocalhost ? CLOUD_URL : window.location.origin;
 
   // Queries
   const { data: branchesData } = useQuery({
@@ -170,7 +173,10 @@ export default function TableManager() {
     setQrModalOpen(true);
   };
 
-  const qrLink = activeQrTable ? `${window.location.origin}/customer/qr?code=${activeQrTable.QRCode}` : '';
+  const effectiveOrigin = (qrHostOrigin || window.location.origin).replace(/\/+$/, '');
+  const qrLink = activeQrTable
+    ? `${effectiveOrigin}/customer/qr?qr=${encodeURIComponent(activeQrTable.QRCode)}&branchId=${selectedBranchId}`
+    : '';
   const qrImageUrl = activeQrTable 
     ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrLink)}` 
     : '';
@@ -477,14 +483,14 @@ export default function TableManager() {
             <h3 className="font-black text-2xl text-gray-800 tracking-tight">{activeQrTable.Name}</h3>
             <p className="text-xs text-gray-400 mt-1">Quét mã QR để mở bàn & đặt món</p>
 
-            <div className="my-6 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center justify-center shadow-inner">
+            <div className="my-5 p-5 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center justify-center shadow-inner">
               <img
                 src={qrImageUrl}
                 alt={`Mã QR ${activeQrTable.Name}`}
                 className="w-48 h-48 rounded-xl shadow-xs bg-white p-2"
               />
-              <p className="mt-2 text-[11px] font-mono text-gray-500 font-bold">
-                Mã: {activeQrTable.QRCode}
+              <p className="mt-2.5 text-[11px] font-mono text-gray-500 font-bold">
+                Mã định danh: {activeQrTable.QRCode}
               </p>
             </div>
 
@@ -494,7 +500,7 @@ export default function TableManager() {
                 className="w-full py-2.5 px-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-all"
               >
                 {copiedLink ? <CheckCheck size={16} className="text-emerald-600" /> : <Copy size={16} />}
-                {copiedLink ? 'Đã sao chép liên kết!' : 'Sao chép liên kết quét QR'}
+                {copiedLink ? 'Đã sao chép liên kết!' : 'Sao chép liên kết QR'}
               </button>
 
               <a
@@ -503,7 +509,7 @@ export default function TableManager() {
                 rel="noreferrer"
                 className="w-full py-2.5 px-4 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold flex items-center justify-center gap-2 transition-all"
               >
-                <ExternalLink size={16} /> Mở giao diện khách của bàn này
+                <ExternalLink size={16} /> Mở trang gọi món của bàn này
               </a>
             </div>
           </div>

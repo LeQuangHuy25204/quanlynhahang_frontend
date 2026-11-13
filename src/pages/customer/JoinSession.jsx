@@ -30,7 +30,7 @@ export default function JoinSession() {
     queryKey: ['sessionStatus', sessionId, participantId],
     queryFn: async () => {
       if (!sessionId) return null;
-      const res = await apiClient.get(`/sessions/${sessionId}`);
+      const res = await apiClient.get(`/sessions/${sessionId}?participantId=${participantId || ''}`);
       const sessionData = res.data || res;
 
       const updates = {

@@ -47,10 +47,11 @@ export default function Menu() {
   const cartTotal = cartItems.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
 
   // Poll session status every 3 seconds if waiting
+  const { participantId } = useSessionStore();
   useQuery({
-    queryKey: ['sessionStatusMenu', sessionId],
+    queryKey: ['sessionStatusMenu', sessionId, participantId],
     queryFn: async () => {
-      const res = await apiClient.get(`/sessions/${sessionId}`);
+      const res = await apiClient.get(`/sessions/${sessionId}?participantId=${participantId || ''}`);
       const sessionData = res.data || res;
       if (sessionData.Status !== status || sessionData.JoinCode !== joinCode) {
         setSession({
@@ -96,31 +97,6 @@ export default function Menu() {
       {status === 0 && (
         <div className="bg-warning text-white p-3 text-center text-[13px] font-bold z-20 sticky top-0 shadow-sm">
           Vui lòng đợi nhân viên xác nhận mở bàn để nhận Mã tham gia và gọi món.
-        </div>
-      )}
-
-      {/* Thẻ Mã tham gia bàn xuất hiện khi bàn đã mở (status === 1) */}
-      {status === 1 && joinCode && (
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-3 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-white/90 flex items-center gap-1.5">
-              <KeyRound size={13} /> Mã tham gia của bàn
-            </p>
-            <p className="text-[11px] text-white/85 mt-0.5">
-              Bạn cùng bàn quét QR và nhập mã này để vào bàn
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard?.writeText(joinCode);
-              toast.success(`Đã sao chép Mã tham gia: ${joinCode}`);
-            }}
-            className="bg-white text-primary px-3.5 py-1.5 rounded-xl font-mono font-black text-[16px] tracking-[0.2em] shadow-sm flex items-center gap-2 active:scale-95 transition-transform"
-          >
-            {joinCode}
-            <Copy size={14} className="text-primary/70" />
-          </button>
         </div>
       )}
 

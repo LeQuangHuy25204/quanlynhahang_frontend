@@ -9,7 +9,7 @@ import { Store, QrCode } from 'lucide-react';
 
 export default function QRScan() {
   const [searchParams] = useSearchParams();
-  const tokenFromUrl = searchParams.get('token') || searchParams.get('qr');
+  const tokenFromUrl = searchParams.get('token') || searchParams.get('qr') || searchParams.get('code');
   const branchFromUrl = searchParams.get('branch') || searchParams.get('branchId');
 
   const [qrCode, setQrCode] = useState(tokenFromUrl || 'table_qr_1');
@@ -24,6 +24,7 @@ export default function QRScan() {
   const { data: branchesData } = useQuery({
     queryKey: ['branches'],
     queryFn: () => apiClient.get('/branches').then(res => res.data || res),
+    enabled: !tokenFromUrl,
   });
   const branches = Array.isArray(branchesData) 
     ? branchesData 
@@ -33,7 +34,7 @@ export default function QRScan() {
   const { data: tablesData } = useQuery({
     queryKey: ['tables', branchId],
     queryFn: () => apiClient.get(`/tables?branchId=${branchId}`).then(res => res.data || res),
-    enabled: !!branchId
+    enabled: !!branchId && !tokenFromUrl
   });
   const tables = Array.isArray(tablesData) ? tablesData : [];
 
@@ -88,9 +89,11 @@ export default function QRScan() {
     }
   };
 
-  // Auto scan if scanned from real physical QR code link
+  // Auto scan if scanned from real physical QR code link (guard against React StrictMode double-invoke)
+  const scannedTokenRef = React.useRef(null);
   useEffect(() => {
-    if (tokenFromUrl) {
+    if (tokenFromUrl && scannedTokenRef.current !== `${tokenFromUrl}_${branchFromUrl || 1}`) {
+      scannedTokenRef.current = `${tokenFromUrl}_${branchFromUrl || 1}`;
       executeScan(tokenFromUrl, branchFromUrl || 1);
     }
   }, [tokenFromUrl, branchFromUrl]);
@@ -108,19 +111,19 @@ export default function QRScan() {
         </div>
         
         <h2 className="text-[24px] font-extrabold text-text-primary text-center tracking-tight mb-2">
-          {tokenFromUrl ? 'Đang nhận diện bàn...' : 'Quét QR Bàn Ăn'}
+          {tokenFromUrl ? 'Đang nhận diện bàn...' : 'Quét Mã QR Tại Bàn'}
         </h2>
-        <p className="text-[13px] text-text-secondary text-center mb-8">
+        <p className="text-[13px] text-text-secondary text-center mb-8 leading-relaxed">
           {tokenFromUrl 
-            ? 'Vui lòng chờ trong giây lát hệ thống đang mở bàn cho bạn...'
-            : 'Chọn cơ sở và bàn để mô phỏng quét mã QR tại bàn.'}
+            ? 'Vui lòng chờ trong giây lát, hệ thống đang kết nối vào bàn của bạn...'
+            : 'Vui lòng mở Camera điện thoại quét mã QR đặt tại bàn ăn hoặc chọn bàn bên dưới để bắt đầu gọi món.'}
         </p>
 
         {!tokenFromUrl && (
-          <form onSubmit={handleScan} className="space-y-6">
+          <form onSubmit={handleScan} className="space-y-5">
             <div>
               <label className="block text-[12px] font-bold text-text-tertiary uppercase tracking-wider mb-2">
-                Chi nhánh
+                Chi nhánh phục vụ
               </label>
               <select 
                 value={branchId} 
@@ -135,9 +138,8 @@ export default function QRScan() {
                   ))
                 ) : (
                   <>
-                    <option value="1">BBQ KLTN - Hồ Chí Minh</option>
-                    <option value="2">BBQ KLTN - Hà Nội</option>
-                    <option value="3">BBQ KLTN - Đà Nẵng</option>
+                    <option value="1">Chi nhánh Quận 1</option>
+                    <option value="2">Chi nhánh Quận 3</option>
                   </>
                 )}
               </select>
@@ -145,7 +147,7 @@ export default function QRScan() {
 
             <div>
               <label className="block text-[12px] font-bold text-text-tertiary uppercase tracking-wider mb-2">
-                Chọn Bàn
+                Bàn ăn
               </label>
               <select 
                 value={qrCode} 
@@ -160,9 +162,9 @@ export default function QRScan() {
                   ))
                 ) : (
                   <>
-                    <option value="table_qr_1">Bàn T1-01 (Tầng 1)</option>
-                    <option value="table_qr_2">Bàn T1-02 (Tầng 1)</option>
-                    <option value="table_qr_3">Bàn VIP-01 (Khu VIP)</option>
+                    <option value="table_qr_1">Bàn T1-01 (Tầng Trệt - Sảnh)</option>
+                    <option value="table_qr_2">Bàn T1-02 (Tầng Trệt - Sảnh)</option>
+                    <option value="table_qr_3">Bàn VIP-01 (Tầng 1 - VIP)</option>
                   </>
                 )}
               </select>
@@ -174,7 +176,7 @@ export default function QRScan() {
                 disabled={isLoading}
                 className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-md shadow-primary/30"
               >
-                {isLoading ? <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> : 'Mô phỏng vào bàn'}
+                {isLoading ? <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> : 'Vào bàn gọi món'}
               </button>
             </div>
           </form>
