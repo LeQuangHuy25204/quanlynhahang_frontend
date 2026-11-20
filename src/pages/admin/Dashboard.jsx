@@ -83,6 +83,9 @@ export default function Dashboard() {
   // Chart Grouping Mode for Multi-day reports: 'day' | 'week' | 'month'
   const [chartGroupBy, setChartGroupBy] = useState('day');
 
+  // Top Items Sort Mode: 'quantity' | 'revenue'
+  const [topSortBy, setTopSortBy] = useState('quantity');
+
   // Invoice List Independent Filter States (Từ ngày - Đến ngày, Search, Phương thức TT)
   const [invoiceStartDate, setInvoiceStartDate] = useState('');
   const [invoiceEndDate, setInvoiceEndDate] = useState('');
@@ -1192,69 +1195,120 @@ export default function Dashboard() {
             </div>
 
             {/* Right 1 Col: Top món ăn chạy nhất */}
-            <div className="bg-white p-6 rounded-2xl shadow-xs border border-gray-100 flex flex-col justify-between h-full">
-              <div>
-                <div className="flex items-start justify-between mb-5">
-                  <h3 className="font-bold text-lg text-gray-900 leading-tight">
-                    Top món ăn bán chạy
-                  </h3>
-                  <span className="text-xs text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg font-semibold">
-                    Top {(reportData?.topItems || []).length}
-                  </span>
-                </div>
+            {(() => {
+              const sortedTopItems = [...(reportData?.topItems || [])]
+                .sort((a, b) => {
+                  const qA = Number(a.TotalQuantity || 0);
+                  const qB = Number(b.TotalQuantity || 0);
+                  const rA = Number(a.TotalRevenue || 0);
+                  const rB = Number(b.TotalRevenue || 0);
+                  if (topSortBy === 'revenue') {
+                    return rB !== rA ? rB - rA : qB - qA;
+                  }
+                  return qB !== qA ? qB - qA : rB - rA;
+                })
+                .slice(0, 10);
 
-                <div className="space-y-3.5">
-                  {(reportData?.topItems || []).slice(0, 7).map((item, index) => {
-                    const rank = index + 1;
-                    const rankBg = rank === 1 
-                      ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                      : rank === 2 
-                        ? 'bg-slate-200 text-slate-800'
-                        : rank === 3 
-                          ? 'bg-orange-100 text-orange-800'
-                          : 'bg-slate-100 text-slate-600';
+              const formatQty = (val) => {
+                const n = Number(val || 0);
+                return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '').replace('.', ',');
+              };
 
-                    return (
-                      <div key={item.MenuItemID || index} className="flex items-center gap-3">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${rankBg}`}>
-                          {rank}
-                        </div>
-
-                        <div className="flex-1 min-w-0 pr-1">
-                          <p className="font-semibold text-gray-800 text-sm truncate" title={item.MenuItemName}>
-                            {item.MenuItemName}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            Đã bán: <span className="font-bold text-gray-700">{Number(item.TotalQuantity)} {item.Unit || 'Phần'}</span>
-                          </p>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <p className="font-bold text-sm text-gray-900 whitespace-nowrap">
-                            {formatCurrency(item.TotalRevenue)}
-                          </p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                            DOANH THU
-                          </p>
-                        </div>
+              return (
+                <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-xs border border-gray-100 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-lg text-gray-900 leading-tight">
+                          Top món ăn bán chạy
+                        </h3>
+                        <span className="text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg font-bold">
+                          Top {sortedTopItems.length}
+                        </span>
                       </div>
-                    );
-                  })}
 
-                  {(!reportData?.topItems || reportData.topItems.length === 0) && (
-                    <div className="py-12 text-center text-gray-400 text-xs">
-                      Chưa có dữ liệu món ăn
+                      <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => setTopSortBy('quantity')}
+                          className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
+                            topSortBy === 'quantity'
+                              ? 'bg-white text-gray-900 shadow-xs font-bold'
+                              : 'text-gray-500 hover:text-gray-800 font-medium'
+                          }`}
+                        >
+                          Theo SL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTopSortBy('revenue')}
+                          className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
+                            topSortBy === 'revenue'
+                              ? 'bg-white text-gray-900 shadow-xs font-bold'
+                              : 'text-gray-500 hover:text-gray-800 font-medium'
+                          }`}
+                        >
+                          Theo DT
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              <div className="pt-4 mt-6 border-t border-gray-100 text-center">
-                <p className="text-[11px] text-gray-400">
-                  Thống kê theo số lượng món đã phục vụ hoàn tất
-                </p>
-              </div>
-            </div>
+                    <div className="space-y-2.5">
+                      {sortedTopItems.map((item, index) => {
+                        const rank = index + 1;
+                        const rankBg = rank === 1 
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                          : rank === 2 
+                            ? 'bg-slate-200 text-slate-800'
+                            : rank === 3 
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-slate-100 text-slate-600';
+
+                        return (
+                          <div key={item.MenuItemID || index} className="flex items-center gap-2.5">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${rankBg}`}>
+                              {rank}
+                            </div>
+
+                            <div className="flex-1 min-w-0 pr-1">
+                              <p className="font-semibold text-gray-800 text-[13px] leading-snug truncate" title={item.MenuItemName}>
+                                {item.MenuItemName}
+                              </p>
+                              <p className="text-[11px] text-gray-400 leading-tight">
+                                Đã bán: <span className="font-bold text-gray-700">{formatQty(item.TotalQuantity)} {item.Unit || 'Phần'}</span>
+                              </p>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <p className="font-bold text-[13px] text-gray-900 whitespace-nowrap leading-snug">
+                                {formatCurrency(item.TotalRevenue)}
+                              </p>
+                              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-tight">
+                                DOANH THU
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {sortedTopItems.length === 0 && (
+                        <div className="py-12 text-center text-gray-400 text-xs">
+                          Chưa có dữ liệu món ăn
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 mt-4 border-t border-gray-100 text-center">
+                    <p className="text-[11px] text-gray-400">
+                      {topSortBy === 'revenue'
+                        ? 'Xếp hạng theo tổng doanh thu món ăn đã thanh toán'
+                        : 'Xếp hạng theo số lượng món ăn đã phục vụ & thanh toán'}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* 5. BẢNG DANH SÁCH HÓA ĐƠN (CHỌN TỪ NGÀY - ĐẾN NGÀY ĐỘC LẬP & KHÔNG BỊ TRÀN) */}
