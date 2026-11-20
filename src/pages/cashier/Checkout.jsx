@@ -1,53 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
-import { ArrowLeft, Receipt, Gift, CreditCard, Wallet, Landmark, QrCode, ExternalLink, RefreshCcw, ShieldCheck } from 'lucide-react';
-import { format } from 'date-fns';
+import {
+  ArrowLeft,
+  Receipt,
+  Gift,
+  Wallet,
+  Landmark,
+  QrCode,
+  ExternalLink,
+  RefreshCcw,
+  ShieldCheck,
+  Utensils,
+} from 'lucide-react';
 
 export default function Checkout() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [promotionId, setPromotionId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
   const [vnpayTx, setVnpayTx] = useState(null);
   const [vnpayStatusInfo, setVnpayStatusInfo] = useState(null);
   const [isQueryingDr, setIsQueryingDr] = useState(false);
 
-  // Load order items and branch config (we'll just call checkout preview or fetch order)
-  // Wait, backend API `POST /payments/checkout` creates the Payment and Invoice.
-  // We should fetch the order details first to display, then call checkout.
-  // Actually, we don't have a GET /orders/:id API specifically for Cashier. 
-  // We can just fetch all orders again and find it, or we can just call checkout immediately to generate Invoice, then show the Invoice for payment!
-  // BUT what if we want to apply promotion BEFORE creating invoice? 
-  // We need to fetch order details. We can use the staff order API filtering by this order.
-  
   const { staff } = useAuthStore();
-  const { data: orderData, isLoading } = useQuery({
+  const { data: orderData } = useQuery({
     queryKey: ['orderDetail', orderId, staff?.branchId],
     queryFn: async () => {
-      const res = await apiClient.get(`/orders?branchId=${staff?.branchId || 1}&status=3`);
-      return res.data; 
-    }
+      const res = await apiClient.get(`/orders?branchId=${staff?.branchId || 1}`);
+      return res.data;
+    },
   });
 
   const { data: promotions = [] } = useQuery({
     queryKey: ['promotions'],
-    queryFn: () => apiClient.get('/promotions').then(res => res.data)
+    queryFn: () => apiClient.get('/promotions').then((res) => res.data),
   });
 
-  const { data: previewInfo } = useQuery({
+  const { data: previewInfo, isLoading: loadingPreview, error: previewError } = useQuery({
     queryKey: ['checkoutPreview', orderId, promotionId],
-    queryFn: () => apiClient.get(`/payments/preview?orderId=${orderId}${promotionId ? `&promotionId=${promotionId}` : ''}`).then(res => res.data),
+    queryFn: () =>
+      apiClient
+        .get(`/payments/preview?orderId=${orderId}${promotionId ? `&promotionId=${promotionId}` : ''}`)
+        .then((res) => res.data),
     enabled: Boolean(orderId),
   });
 
   const currentOrder = Array.isArray(orderData)
-    ? orderData.find(o => String(o.OrderID) === String(orderId))
+    ? orderData.find((o) => String(o.OrderID) === String(orderId))
     : null;
+
+  const formatMoney = (val) =>
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(val || 0));
 
   const handleCheckout = async () => {
     setIsProcessing(true);
@@ -60,25 +68,23 @@ export default function Checkout() {
         });
         setVnpayTx(res.data);
         setVnpayStatusInfo({ status: 'PENDING', txnRef: res.data.txnRef, amount: res.data.amount });
-        toast.success('Đã tạo giao dịch VNPay! Chờ khách quét/thanh toán.');
+        toast.success('Đã tạo giao dịch VNPay! Chờ khách thanh toán.');
         return;
       }
 
-      // Create Payment & Invoice for CASH / BANK_TRANSFER / CARD
       const res = await apiClient.post('/payments/checkout', {
         orderId: Number(orderId),
         sessionId: currentOrder?.SessionID,
-        promotionId: promotionId ? Number(promotionId) : null
+        promotionId: promotionId ? Number(promotionId) : null,
       });
-      
+
       const paymentId = res.data.paymentId;
-      
-      // Complete payment immediately (or go to another step)
+
       await apiClient.put(`/payments/${paymentId}/complete`, {
         paymentMethod,
-        transactionNo: paymentMethod !== 'CASH' ? 'TXN' + Date.now() : null
+        transactionNo: paymentMethod === 'BANK_TRANSFER' ? `BIDV-${Date.now()}` : null,
       });
-      
+
       toast.success('Thanh toán thành công!');
       navigate(`/cashier/invoice/${paymentId}`);
     } catch (err) {
@@ -124,87 +130,163 @@ export default function Checkout() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 mb-6 font-medium">
+    <div className="max-w-3xl mx-auto pb-10">
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 text-gray-500 hover:text-gray-800 mb-5 font-medium"
+      >
         <ArrowLeft size={20} /> Quay lại
       </button>
 
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
-        <div className="flex justify-between items-start border-b pb-6 mb-6">
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-start border-b pb-5">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <Receipt className="text-primary" /> Xử lý thanh toán
+              <Receipt className="text-primary" /> Xác nhận thanh toán
             </h2>
-            <p className="text-gray-500 mt-1">Xác nhận đơn và áp dụng khuyến mãi</p>
+            <p className="text-gray-500 mt-1 text-sm">
+              {currentOrder ? `${currentOrder.TableName} · ${currentOrder.AreaName}` : `Đơn hàng #${orderId}`}
+            </p>
           </div>
           <div className="text-right bg-blue-50 text-blue-800 px-4 py-2 rounded-xl border border-blue-100">
-            <p className="text-xs uppercase font-bold tracking-wider mb-1">Mã đơn</p>
-            <p className="font-mono font-bold text-lg">Order #{orderId}</p>
+            <p className="text-[11px] uppercase font-bold tracking-wider mb-0.5">Mã đơn</p>
+            <p className="font-mono font-bold text-base">#{orderId}</p>
           </div>
         </div>
 
-        <div className="mb-6">
+        {/* Chi tiết món & Tổng tiền */}
+        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
+            <Utensils size={14} /> Chi tiết hóa đơn tạm tính
+          </h3>
+
+          {loadingPreview ? (
+            <p className="text-sm text-gray-500 py-4 text-center">Đang tải chi tiết món...</p>
+          ) : previewError ? (
+            <p className="text-sm text-red-500 py-2">{previewError.message || 'Không tải được chi tiết hóa đơn'}</p>
+          ) : previewInfo ? (
+            <>
+              <div className="divide-y divide-gray-200/70 max-h-52 overflow-y-auto pr-1 mb-3">
+                {previewInfo.lines?.map((l) => (
+                  <div key={l.orderLineId} className="py-2 flex justify-between text-sm">
+                    <span className="text-gray-800 font-medium">
+                      {l.menuItemName} <span className="text-gray-400 font-normal">x{l.quantity}</span>
+                    </span>
+                    <span className="font-semibold text-gray-800">
+                      {new Intl.NumberFormat('vi-VN').format(l.amount)}đ
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-gray-200 pt-3 space-y-1.5 text-sm">
+                <div className="flex justify-between text-gray-600">
+                  <span>Tạm tính</span>
+                  <span>{new Intl.NumberFormat('vi-VN').format(previewInfo.subTotal)}đ</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Thuế VAT ({previewInfo.vatRate}%)</span>
+                  <span>{new Intl.NumberFormat('vi-VN').format(previewInfo.vatAmount)}đ</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Phí phục vụ ({previewInfo.serviceFeeRate}%)</span>
+                  <span>{new Intl.NumberFormat('vi-VN').format(previewInfo.serviceFeeAmount)}đ</span>
+                </div>
+                {Number(previewInfo.discountAmount) > 0 && (
+                  <div className="flex justify-between text-emerald-600 font-medium">
+                    <span>Khuyến mãi {previewInfo.promotionName ? `(${previewInfo.promotionName})` : ''}</span>
+                    <span>-{new Intl.NumberFormat('vi-VN').format(previewInfo.discountAmount)}đ</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="font-bold text-gray-800">TỔNG CẦN THU</span>
+                  <span className="text-2xl font-black text-primary">{formatMoney(previewInfo.totalAmount)}</span>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        {/* Khuyến mãi */}
+        <div>
           <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
             <Gift size={18} className="text-orange-500" /> Áp dụng khuyến mãi
           </label>
           <select
             value={promotionId}
             onChange={(e) => setPromotionId(e.target.value)}
-            className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
           >
             <option value="">-- Không áp dụng --</option>
-            {promotions.filter(p => p.IsActive === 1).map(p => {
-              const scope = p.ApplyLevel === 'MENU_ITEM'
-                ? ` · Món: ${(p.MenuItems || []).map(m => m.Name).join(', ')}`
-                : p.ApplyLevel === 'CATEGORY'
-                  ? ` · Danh mục: ${p.TargetCategoryName || ''}`
-                  : '';
-              const conds = [
-                Number(p.MinOrderAmount) > 0 ? `HĐ từ ${new Intl.NumberFormat('vi-VN').format(p.MinOrderAmount)}đ` : null,
-                Number(p.MinItemCount) > 0 ? `từ ${p.MinItemCount} món` : null,
-              ].filter(Boolean);
-              return (
+            {promotions
+              .filter((p) => p.IsActive === 1)
+              .map((p) => (
                 <option key={p.PromotionID} value={p.PromotionID}>
-                  {p.Name} (Giảm {p.DiscountValue}{p.DiscountType === 'PERCENT' ? '%' : 'đ'}){scope}{conds.length ? ` · Điều kiện: ${conds.join(', ')}` : ''}
+                  {p.Name} (Giảm {p.DiscountValue}
+                  {p.DiscountType === 'PERCENT' ? '%' : 'đ'})
                 </option>
-              );
-            })}
+              ))}
           </select>
         </div>
 
-        <div className="mb-8">
+        {/* Phương thức thanh toán (chỉ giữ 3 phương thức thực tế sử dụng) */}
+        <div>
           <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
             <Wallet size={18} className="text-green-500" /> Phương thức thanh toán
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <MethodCard value="CASH" icon={<Wallet/>} label="Tiền mặt" selected={paymentMethod} onSelect={setPaymentMethod} />
-            <MethodCard value="BANK_TRANSFER" icon={<Landmark/>} label="Chuyển khoản" selected={paymentMethod} onSelect={setPaymentMethod} />
-            <MethodCard value="CARD" icon={<CreditCard/>} label="Thẻ tín dụng" selected={paymentMethod} onSelect={setPaymentMethod} />
-            <MethodCard value="VNPAY" icon={<QrCode/>} label="VNPay Online" selected={paymentMethod} onSelect={setPaymentMethod} />
+          <div className="grid grid-cols-3 gap-3">
+            <MethodCard
+              value="CASH"
+              icon={<Wallet />}
+              label="Tiền mặt"
+              selected={paymentMethod}
+              onSelect={setPaymentMethod}
+            />
+            <MethodCard
+              value="BANK_TRANSFER"
+              icon={<Landmark />}
+              label="Chuyển khoản BIDV"
+              selected={paymentMethod}
+              onSelect={setPaymentMethod}
+            />
+            <MethodCard
+              value="VNPAY"
+              icon={<QrCode />}
+              label="VNPay Online"
+              selected={paymentMethod}
+              onSelect={setPaymentMethod}
+            />
           </div>
         </div>
 
+        {/* Khung VietQR BIDV rõ ràng cho Thu ngân đối chiếu */}
         {paymentMethod === 'BANK_TRANSFER' && previewInfo?.vietQr && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-center gap-4">
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-center gap-4">
             <img
               src={previewInfo.vietQr.qrUrl}
               alt="VietQR"
               className="w-44 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xs shrink-0"
             />
             <div className="text-sm space-y-1.5 text-gray-700">
-              <p className="text-xs font-bold uppercase text-emerald-800">Mã VietQR chuyển khoản ngân hàng</p>
+              <p className="text-xs font-bold uppercase text-emerald-800">
+                Thông tin chuyển khoản BIDV (VietQR)
+              </p>
               <p>Ngân hàng: <b>{previewInfo.vietQr.bankId}</b></p>
               <p>Số tài khoản: <b className="font-mono">{previewInfo.vietQr.accountNo}</b></p>
               <p>Chủ tài khoản: <b>{previewInfo.vietQr.accountName}</b></p>
-              <p>Số tiền: <b className="text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(previewInfo.vietQr.amount)}</b></p>
-              <p>Nội dung: <b className="font-mono text-xs">{previewInfo.vietQr.addInfo}</b></p>
-              <p className="text-xs text-gray-500 pt-1">Khách quét mã xong, thu ngân kiểm tra tiền về tài khoản rồi bấm nút XÁC NHẬN THANH TOÁN bên dưới.</p>
+              <p>Số tiền: <b className="text-primary">{formatMoney(previewInfo.vietQr.amount)}</b></p>
+              <p>Nội dung CK: <b className="font-mono text-xs">{previewInfo.vietQr.addInfo}</b></p>
+              <p className="text-xs text-emerald-700 pt-1 font-medium">
+                Kiểm tra app ngân hàng đã nhận đủ tiền rồi bấm nút xác nhận bên dưới.
+              </p>
             </div>
           </div>
         )}
 
-        {vnpayTx && (
-          <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-3">
+        {/* Khung VNPay chờ xác nhận */}
+        {vnpayTx && paymentMethod === 'VNPAY' && (
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-3">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-xs font-bold uppercase text-blue-700">Giao dịch VNPay đang chờ xác nhận</p>
@@ -214,9 +296,6 @@ export default function Checkout() {
                 {vnpayStatusInfo?.status || 'PENDING'}
               </span>
             </div>
-            <p className="text-xs text-gray-600">
-              Thu ngân không được tự xác nhận thành công thủ công cho VNPay. Chỉ hoàn tất khi nhận IPN hoặc đối soát hợp lệ.
-            </p>
             <div className="flex flex-wrap gap-2">
               <a
                 href={vnpayTx.paymentUrl}
@@ -248,11 +327,17 @@ export default function Checkout() {
         <button
           onClick={handleCheckout}
           disabled={isProcessing}
-          className="w-full bg-primary hover:bg-primary/90 text-white font-bold text-lg py-4 rounded-xl flex justify-center items-center gap-2 active:scale-[0.99] transition-all disabled:opacity-70"
+          className="w-full bg-primary hover:bg-primary/90 text-white font-bold text-base py-4 rounded-xl flex justify-center items-center gap-2 active:scale-[0.99] transition-all disabled:opacity-70"
         >
-          {isProcessing
-            ? <span className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full" />
-            : (paymentMethod === 'VNPAY' ? 'TẠO LIÊN KẾT THANH TOÁN VNPAY' : 'XÁC NHẬN THANH TOÁN')}
+          {isProcessing ? (
+            <span className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full" />
+          ) : paymentMethod === 'VNPAY' ? (
+            'TẠO LIÊN KẾT THANH TOÁN VNPAY'
+          ) : paymentMethod === 'BANK_TRANSFER' ? (
+            'XÁC NHẬN ĐÃ NHẬN CHUYỂN KHOẢN & ĐÓNG BÀN'
+          ) : (
+            'XÁC NHẬN ĐÃ THU TIỀN MẶT & ĐÓNG BÀN'
+          )}
         </button>
       </div>
     </div>
@@ -261,12 +346,15 @@ export default function Checkout() {
 
 const MethodCard = ({ value, icon, label, selected, onSelect }) => (
   <button
+    type="button"
     onClick={() => onSelect(value)}
     className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-      selected === value ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 hover:border-gray-300 text-gray-600'
+      selected === value
+        ? 'border-primary bg-primary/5 text-primary'
+        : 'border-gray-200 hover:border-gray-300 text-gray-600'
     }`}
   >
-    {React.cloneElement(icon, { size: 24, className: 'mb-2' })}
-    <span className="text-sm font-bold">{label}</span>
+    {React.cloneElement(icon, { size: 22, className: 'mb-2' })}
+    <span className="text-xs sm:text-sm font-bold text-center">{label}</span>
   </button>
 );
