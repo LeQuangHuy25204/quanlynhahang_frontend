@@ -39,6 +39,12 @@ export default function Checkout() {
     queryFn: () => apiClient.get('/promotions').then(res => res.data)
   });
 
+  const { data: previewInfo } = useQuery({
+    queryKey: ['checkoutPreview', orderId, promotionId],
+    queryFn: () => apiClient.get(`/payments/preview?orderId=${orderId}${promotionId ? `&promotionId=${promotionId}` : ''}`).then(res => res.data),
+    enabled: Boolean(orderId),
+  });
+
   const currentOrder = Array.isArray(orderData)
     ? orderData.find(o => String(o.OrderID) === String(orderId))
     : null;
@@ -177,6 +183,25 @@ export default function Checkout() {
             <MethodCard value="VNPAY" icon={<QrCode/>} label="VNPay Online" selected={paymentMethod} onSelect={setPaymentMethod} />
           </div>
         </div>
+
+        {paymentMethod === 'BANK_TRANSFER' && previewInfo?.vietQr && (
+          <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-center gap-4">
+            <img
+              src={previewInfo.vietQr.qrUrl}
+              alt="VietQR"
+              className="w-44 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xs shrink-0"
+            />
+            <div className="text-sm space-y-1.5 text-gray-700">
+              <p className="text-xs font-bold uppercase text-emerald-800">Mã VietQR chuyển khoản ngân hàng</p>
+              <p>Ngân hàng: <b>{previewInfo.vietQr.bankId}</b></p>
+              <p>Số tài khoản: <b className="font-mono">{previewInfo.vietQr.accountNo}</b></p>
+              <p>Chủ tài khoản: <b>{previewInfo.vietQr.accountName}</b></p>
+              <p>Số tiền: <b className="text-primary">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(previewInfo.vietQr.amount)}</b></p>
+              <p>Nội dung: <b className="font-mono text-xs">{previewInfo.vietQr.addInfo}</b></p>
+              <p className="text-xs text-gray-500 pt-1">Khách quét mã xong, thu ngân kiểm tra tiền về tài khoản rồi bấm nút XÁC NHẬN THANH TOÁN bên dưới.</p>
+            </div>
+          </div>
+        )}
 
         {vnpayTx && (
           <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-3">
