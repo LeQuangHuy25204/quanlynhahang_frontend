@@ -116,6 +116,38 @@ export default function Invoice() {
         </div>
       </div>
       
+        {/* Print styles inserted directly for simplicity */}
+      {invoice.vnpayTransactions && invoice.vnpayTransactions.length > 0 && (
+        <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6 print:hidden">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3">
+            Lịch sử giao dịch VNPay (Đối soát)
+          </h3>
+          <div className="space-y-2">
+            {invoice.vnpayTransactions.map((tx) => (
+              <div key={tx.PaymentTransactionID} className="flex flex-wrap justify-between items-center gap-2 p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs">
+                <div>
+                  <p className="font-mono font-bold text-gray-800">{tx.VnpTxnRef}</p>
+                  <p className="text-gray-500">
+                    Mã VNPay: {tx.VnpTransactionNo || '—'} · Ngân hàng: {tx.VnpBankCode || '—'} · {new Date(tx.CreatedAt).toLocaleString('vi-VN')}
+                  </p>
+                  {tx.NeedReconcile === 1 && (
+                    <p className="text-orange-600 font-semibold mt-1">{tx.ReconcileNote}</p>
+                  )}
+                </div>
+                <span className={`px-2.5 py-1 rounded-full font-bold ${
+                  tx.Status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' :
+                  tx.Status === 'DUPLICATE_CONFLICT' ? 'bg-orange-100 text-orange-700' :
+                  tx.Status === 'PENDING' ? 'bg-blue-100 text-blue-700' :
+                  'bg-red-100 text-red-700'
+                }`}>
+                  {tx.Status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Print styles inserted directly for simplicity */}
       <style>{`
         @media print {

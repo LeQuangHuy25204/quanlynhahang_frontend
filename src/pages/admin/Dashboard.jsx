@@ -59,6 +59,7 @@ const PAYMENT_METHOD_MAP = {
   CASH: { label: 'Tiền mặt', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Banknote },
   BANK_TRANSFER: { label: 'Chuyển khoản', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: QrCode },
   CARD: { label: 'Thẻ ngân hàng', color: 'bg-purple-50 text-purple-700 border-purple-200', icon: CreditCard },
+  VNPAY: { label: 'VNPay Online', color: 'bg-sky-50 text-sky-700 border-sky-200', icon: QrCode },
 };
 
 export default function Dashboard() {
@@ -1419,6 +1420,7 @@ export default function Dashboard() {
                     <option value="CASH">Tiền mặt</option>
                     <option value="BANK_TRANSFER">Chuyển khoản</option>
                     <option value="CARD">Thẻ ngân hàng</option>
+                    <option value="VNPAY">VNPay Online</option>
                   </select>
                 </div>
               </div>

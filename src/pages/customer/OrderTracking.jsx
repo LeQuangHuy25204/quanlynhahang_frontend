@@ -4,13 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useSessionStore } from '../../store/sessionStore';
 import apiClient from '../../api/client';
 import { toast } from 'sonner';
-import { Clock, RefreshCcw, CheckCircle, Flame, XCircle, FileText, Utensils } from 'lucide-react';
+import { Clock, RefreshCcw, CheckCircle, Flame, XCircle, FileText, Utensils, CreditCard, Wallet, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function OrderTracking() {
-  const { sessionToken } = useSessionStore();
+  const { sessionToken, sessionId, table } = useSessionStore();
   const navigate = useNavigate();
   const [isRequesting, setIsRequesting] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [isRedirectingVnpay, setIsRedirectingVnpay] = useState(false);
 
   const { data: order, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['orderTracking', sessionToken],
@@ -35,17 +39,48 @@ export default function OrderTracking() {
     );
   }
 
+  const handleOpenPaymentModal = async () => {
+    setShowPayModal(true);
+    setIsLoadingPreview(true);
+    try {
+      const res = await apiClient.post('/payments/customer/preview', { sessionToken });
+      setPreviewData(res.data);
+    } catch (err) {
+      toast.error(err.message || 'Chưa thể xem hóa đơn tạm tính.');
+      setPreviewData(null);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
   const handleRequestPayment = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn gọi thanh toán?')) return;
+    if (!window.confirm('Bạn có chắc chắn muốn gọi thu ngân thanh toán tại quầy?')) return;
     setIsRequesting(true);
     try {
       await apiClient.post(`/orders/${order.OrderID}/request-payment`, { sessionToken });
-      toast.success('Đã gửi yêu cầu thanh toán.');
+      toast.success('Đã gửi yêu cầu thanh toán tới thu ngân.');
+      setShowPayModal(false);
       refetch();
     } catch (err) {
       toast.error(err.message || 'Lỗi yêu cầu thanh toán');
     } finally {
       setIsRequesting(false);
+    }
+  };
+
+  const handlePayWithVnpay = async () => {
+    if (isRedirectingVnpay) return;
+    setIsRedirectingVnpay(true);
+    try {
+      const res = await apiClient.post('/payments/vnpay/create', { sessionToken });
+      if (res.data?.paymentUrl) {
+        window.location.assign(res.data.paymentUrl);
+      } else {
+        throw new Error('Không nhận được liên kết thanh toán VNPay.');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Không thể khởi tạo thanh toán VNPay.');
+      setIsRedirectingVnpay(false);
     }
   };
 
@@ -160,16 +195,125 @@ export default function OrderTracking() {
           <Utensils size={18} /> Gọi thêm món
         </button>
         <button 
-          onClick={handleRequestPayment}
-          disabled={isRequesting || order.Status === 3}
+          onClick={handleOpenPaymentModal}
+          disabled={isRequesting || isRedirectingVnpay}
           className={`flex-1 font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 ${
-            order.Status === 3 ? 'bg-green-100 text-green-700' : 'bg-primary text-white hover:bg-primary/90 active:scale-[0.98]'
+            order.Status === 3 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-primary text-white hover:bg-primary/90 active:scale-[0.98]'
           }`}
         >
-          {isRequesting ? <span className="animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full" /> : null}
-          {order.Status === 3 ? 'ĐÃ GỌI TÍNH TIỀN' : 'GỌI THANH TOÁN'}
+          <CreditCard size={18} />
+          {order.Status === 3 ? 'THANH TOÁN VNPAY' : 'THANH TOÁN'}
         </button>
       </div>
+
+      {/* Modal Thanh toán & VNPay */}
+      {showPayModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-800">Xác nhận thanh toán</h3>
+                <p className="text-xs text-gray-500">
+                  {previewData?.tableName || table?.tableName || 'Bàn'} · Phiên #{previewData?.sessionId || sessionId || ''}
+                </p>
+              </div>
+              <button
+                onClick={() => !isRedirectingVnpay && setShowPayModal(false)}
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {isRedirectingVnpay ? (
+              <div className="py-12 text-center space-y-3">
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="font-bold text-gray-800">Đang chuyển đến cổng thanh toán VNPay...</p>
+                <p className="text-xs text-gray-500">Vui lòng không đóng trình duyệt hoặc bấm tải lại.</p>
+              </div>
+            ) : isLoadingPreview ? (
+              <div className="py-10 text-center text-gray-500 text-sm">Đang tính toán hóa đơn...</div>
+            ) : previewData ? (
+              <>
+                <div className="max-h-48 overflow-y-auto space-y-2 mb-4 pr-1">
+                  {previewData.lines?.map((l) => (
+                    <div key={l.orderLineId} className="flex justify-between text-sm">
+                      <span className="text-gray-700">
+                        {l.menuItemName} <span className="text-gray-400">x{l.quantity}</span>
+                      </span>
+                      <span className="font-medium text-gray-800">
+                        {new Intl.NumberFormat('vi-VN').format(l.amount)}đ
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-3.5 space-y-1.5 text-sm border border-gray-100 mb-5">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Tạm tính</span>
+                    <span>{new Intl.NumberFormat('vi-VN').format(previewData.subTotal)}đ</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Thuế VAT ({previewData.vatRate}%)</span>
+                    <span>{new Intl.NumberFormat('vi-VN').format(previewData.vatAmount)}đ</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Phí phục vụ ({previewData.serviceFeeRate}%)</span>
+                    <span>{new Intl.NumberFormat('vi-VN').format(previewData.serviceFeeAmount)}đ</span>
+                  </div>
+                  {Number(previewData.discountAmount) > 0 && (
+                    <div className="flex justify-between text-emerald-600 font-medium">
+                      <span>Khuyến mãi {previewData.promotionName ? `(${previewData.promotionName})` : ''}</span>
+                      <span>-{new Intl.NumberFormat('vi-VN').format(previewData.discountAmount)}đ</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-2 border-t border-gray-200 font-bold text-base text-gray-900">
+                    <span>Tổng cần thanh toán</span>
+                    <span className="text-primary">
+                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(previewData.totalAmount)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <button
+                    onClick={handlePayWithVnpay}
+                    disabled={isRedirectingVnpay}
+                    className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.99] transition-all"
+                  >
+                    <CreditCard size={18} /> Thanh toán ngay qua VNPay
+                  </button>
+
+                  {order.Status !== 3 && (
+                    <button
+                      onClick={handleRequestPayment}
+                      disabled={isRequesting}
+                      className="w-full py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Wallet size={16} /> Gọi thu ngân thanh toán tại quầy
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="py-6 text-center space-y-4">
+                <p className="text-sm text-gray-600">
+                  Hiện chưa thể tạo hóa đơn tự động (có thể còn món đang chế biến/chờ cân). Bạn vẫn có thể gọi nhân viên hỗ trợ.
+                </p>
+                {order.Status !== 3 && (
+                  <button
+                    onClick={handleRequestPayment}
+                    disabled={isRequesting}
+                    className="w-full py-3 rounded-xl bg-primary text-white font-bold"
+                  >
+                    Gọi thu ngân hỗ trợ
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

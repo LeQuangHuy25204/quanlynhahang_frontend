@@ -17,6 +17,7 @@ import Menu from '../pages/customer/Menu';
 import Cart from '../pages/customer/Cart';
 import OrderTracking from '../pages/customer/OrderTracking';
 import PaymentWaiting from '../pages/customer/PaymentWaiting';
+import PaymentResult from '../pages/customer/PaymentResult';
 
 // Staff Pages (Waiter)
 import TableBoard from '../pages/waiter/TableBoard';
@@ -61,6 +62,7 @@ export default function AppRoutes() {
         <Route path="cart" element={<Cart />} />
         <Route path="tracking" element={<OrderTracking />} />
         <Route path="payment-waiting" element={<PaymentWaiting />} />
+        <Route path="payment-result" element={<PaymentResult />} />
       </Route>
 
       {/* Staff / Table Board Routes */}
