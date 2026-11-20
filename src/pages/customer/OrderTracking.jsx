@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useSessionStore } from '../../store/sessionStore';
@@ -206,9 +207,9 @@ export default function OrderTracking() {
         </button>
       </div>
 
-      {/* Modal Thanh toán & VNPay */}
-      {showPayModal && (
-        <div className="fixed inset-0 z-[100] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      {/* Modal Thanh toán & VNPay (render qua Portal để không bị thanh điều hướng dưới che trên mobile) */}
+      {showPayModal && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex justify-between items-center border-b pb-3 mb-4">
               <div>
@@ -312,7 +313,8 @@ export default function OrderTracking() {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
