@@ -45,6 +45,8 @@ export default function MenuManager() {
   const [overrideForm, setOverrideForm] = useState({
     overridePrice: '',
     isAvailable: true,
+    stockQuantity: '',
+    lowStockThreshold: '5',
   });
 
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -153,6 +155,8 @@ export default function MenuManager() {
     setOverrideForm({
       overridePrice: item.overridePrice !== null ? item.overridePrice : '',
       isAvailable: item.branchAvailable,
+      stockQuantity: item.stockQuantity !== null && item.stockQuantity !== undefined ? String(item.stockQuantity) : '',
+      lowStockThreshold: item.lowStockThreshold !== null && item.lowStockThreshold !== undefined ? String(item.lowStockThreshold) : '5',
     });
     setOverrideModalOpen(true);
   };
@@ -186,6 +190,8 @@ export default function MenuManager() {
     const payload = {
       overridePrice: overrideForm.overridePrice !== '' ? Number(overrideForm.overridePrice) : null,
       isAvailable: overrideForm.isAvailable,
+      stockQuantity: overrideForm.stockQuantity !== '' ? Number(overrideForm.stockQuantity) : null,
+      lowStockThreshold: overrideForm.lowStockThreshold !== '' ? Number(overrideForm.lowStockThreshold) : 5,
       branchId: selectedBranchId,
     };
     overrideMutation.mutate({ id: overrideTargetItem.menuItemId, data: payload });
@@ -282,6 +288,35 @@ export default function MenuManager() {
       {/* TAB 1: MENU ITEMS */}
       {activeTab === 'items' && (
         <div className="space-y-4">
+          {/* Cảnh báo tồn kho chi nhánh */}
+          {(() => {
+            const outItems = menuItems.filter((i) => i.isOutOfStock);
+            const lowItems = menuItems.filter((i) => i.isLowStock);
+            if (outItems.length === 0 && lowItems.length === 0) return null;
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5 text-sm text-amber-900">
+                  <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                  <div>
+                    <p className="font-bold">Cảnh báo tồn kho chi nhánh</p>
+                    <p className="text-xs text-amber-800 mt-0.5">
+                      {outItems.length > 0 && (
+                        <span className="font-semibold text-rose-700">
+                          {outItems.length} món đã hết hàng & tự động khóa ({outItems.map((i) => i.name).join(', ')}).{' '}
+                        </span>
+                      )}
+                      {lowItems.length > 0 && (
+                        <span className="font-semibold text-amber-800">
+                          {lowItems.length} món sắp hết hàng ({lowItems.map((i) => `${i.name}: còn ${i.stockQuantity}`).join(', ')}).
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Filter Bar */}
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-3 items-center justify-between">
             <div className="relative w-full md:w-80">
@@ -332,6 +367,7 @@ export default function MenuManager() {
                     <th className="px-4 py-4">Danh mục</th>
                     <th className="px-4 py-4">Giá gốc</th>
                     <th className="px-4 py-4">Giá chi nhánh</th>
+                    <th className="px-4 py-4">Số lượng còn</th>
                     <th className="px-4 py-4">Trạng thái CN</th>
                     <th className="px-6 py-4 text-right">Thao tác</th>
                   </tr>
@@ -339,13 +375,13 @@ export default function MenuManager() {
                 <tbody className="divide-y divide-gray-100">
                   {loadingMenu ? (
                     <tr>
-                      <td colSpan="6" className="text-center py-10 text-gray-400 font-medium">
+                      <td colSpan="7" className="text-center py-10 text-gray-400 font-medium">
                         Đang tải danh sách món...
                       </td>
                     </tr>
                   ) : filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="text-center py-10 text-gray-400 font-medium">
+                      <td colSpan="7" className="text-center py-10 text-gray-400 font-medium">
                         Không tìm thấy món ăn nào phù hợp.
                       </td>
                     </tr>
@@ -419,6 +455,24 @@ export default function MenuManager() {
                               </div>
                             ) : (
                               <span className="text-xs text-gray-400 italic">Theo giá gốc</span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-4">
+                            {item.stockQuantity === null || item.stockQuantity === undefined ? (
+                              <span className="text-xs text-gray-400 italic">Không giới hạn</span>
+                            ) : item.stockQuantity <= 0 ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                                Hết hàng (0)
+                              </span>
+                            ) : item.isLowStock ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-300">
+                                <AlertCircle size={12} /> Sắp hết: {item.stockQuantity} {item.unit || 'phần'}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                                Còn {item.stockQuantity} {item.unit || 'phần'}
+                              </span>
                             )}
                           </td>
 
@@ -688,6 +742,44 @@ export default function MenuManager() {
                     className="w-full pl-3.5 pr-12 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-primary"
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">VNĐ</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">
+                    Số lượng tồn kho (Trống = KGH)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step={overrideTargetItem.isWeightBased ? '0.1' : '1'}
+                    value={overrideForm.stockQuantity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setOverrideForm({
+                        ...overrideForm,
+                        stockQuantity: val,
+                        isAvailable: val !== '' && Number(val) <= 0 ? false : (val !== '' && Number(val) > 0 ? true : overrideForm.isAvailable),
+                      });
+                    }}
+                    placeholder="VD: 20"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">
+                    Mốc cảnh báo sắp hết
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step={overrideTargetItem.isWeightBased ? '0.1' : '1'}
+                    value={overrideForm.lowStockThreshold}
+                    onChange={(e) => setOverrideForm({ ...overrideForm, lowStockThreshold: e.target.value })}
+                    placeholder="VD: 5"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-primary"
+                  />
                 </div>
               </div>
 

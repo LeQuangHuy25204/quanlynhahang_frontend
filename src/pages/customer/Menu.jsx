@@ -22,6 +22,10 @@ export default function Menu() {
       toast.error('Bàn chưa được mở. Vui lòng đợi.');
       return;
     }
+    if (!item.isAvailable || item.isOutOfStock) {
+      toast.error(`Món "${item.name}" hiện đã hết hàng.`);
+      return;
+    }
     setSelectedItem(item);
   };
 
@@ -30,6 +34,17 @@ export default function Menu() {
     if (status === 0) {
       toast.error('Bàn chưa được mở. Vui lòng đợi.');
       return;
+    }
+    if (!item.isAvailable || item.isOutOfStock) {
+      toast.error(`Món "${item.name}" hiện đã hết hàng.`);
+      return;
+    }
+    if (item.stockQuantity !== null && item.stockQuantity !== undefined) {
+      const inCart = cartItems.find((c) => c.menuItemId === item.menuItemId)?.quantity || 0;
+      if (inCart + 1 > item.stockQuantity) {
+        toast.error(`Món "${item.name}" chỉ còn ${item.stockQuantity} ${item.unit || 'phần'}.`);
+        return;
+      }
     }
     if (item.isWeightBased) {
       setSelectedItem(item);
@@ -70,7 +85,8 @@ export default function Menu() {
   
   const { data: menuData, isLoading } = useQuery({
     queryKey: ['menu', branchId],
-    queryFn: () => apiClient.get(`/menu?branchId=${branchId}`).then(res => res.data)
+    queryFn: () => apiClient.get(`/menu?branchId=${branchId}`).then(res => res.data),
+    refetchInterval: 10000,
   });
 
   if (isLoading) return <div className="p-10 text-center text-gray-500">Đang tải thực đơn...</div>;
@@ -147,21 +163,29 @@ export default function Menu() {
         </div>
         
         <div className="flex flex-col gap-4">
-          {displayItems.map(item => (
+          {displayItems.map(item => {
+            const outOfStock = !item.isAvailable || item.isOutOfStock;
+            return (
             <div 
               key={item.menuItemId} 
-              className="bg-white rounded-[20px] p-3 shadow-sm border border-border flex gap-4 items-center active:scale-[0.98] transition-transform cursor-pointer group" 
+              className={`bg-white rounded-[20px] p-3 shadow-sm border border-border flex gap-4 items-center transition-transform group ${
+                outOfStock ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'active:scale-[0.98] cursor-pointer'
+              }`} 
               onClick={() => handleItemClick(item)}
             >
               <div className="w-[84px] h-[84px] bg-bg-page rounded-[14px] overflow-hidden flex-shrink-0 relative">
                 {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <img src={item.imageUrl} alt={item.name} className={`w-full h-full object-cover transition-transform duration-300 ${outOfStock ? 'grayscale' : 'group-hover:scale-105'}`} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-text-tertiary">
                     <UtensilsCrossed size={24} opacity={0.5}/>
                   </div>
                 )}
-                {item.isWeightBased && (
+                {outOfStock ? (
+                  <span className="absolute inset-0 bg-black/55 text-white text-[10px] font-black flex items-center justify-center tracking-wider">
+                    HẾT MÓN
+                  </span>
+                ) : item.isWeightBased && (
                   <span className="absolute top-1 right-1 bg-info text-white text-[9px] px-1.5 py-0.5 rounded-md font-bold shadow-sm">
                     CÂN
                   </span>
@@ -171,25 +195,39 @@ export default function Menu() {
               <div className="flex-1 min-w-0 py-1">
                 <h3 className="text-[15px] font-bold text-text-primary leading-tight truncate">{item.name}</h3>
                 <p className="text-[12px] text-text-tertiary leading-snug mt-1 line-clamp-2 pr-8">{item.description || 'Món ăn đặc trưng của nhà hàng BBQ'}</p>
-                <div className="flex items-end justify-between mt-2">
+                <div className="flex items-center gap-2 flex-wrap mt-2">
                   <p className="text-primary font-bold text-[14px]">
                     {new Intl.NumberFormat('vi-VN').format(item.finalPrice)}đ
                   </p>
+                  {outOfStock ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                      Tạm hết
+                    </span>
+                  ) : item.isLowStock ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                      Sắp hết · còn {item.stockQuantity} {item.unit || 'phần'}
+                    </span>
+                  ) : item.stockQuantity !== null && item.stockQuantity !== undefined ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                      Còn {item.stockQuantity} {item.unit || 'phần'}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
               <div className="self-end pr-2 pb-1">
                 <button 
                   onClick={(e) => handleQuickAdd(item, e)}
-                  className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center shadow-md shadow-primary/30 hover:bg-primary-hover active:scale-90 transition-all disabled:opacity-50"
-                  disabled={status === 0}
-                  title="Thêm nhanh 1 phần"
+                  className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center shadow-md shadow-primary/30 hover:bg-primary-hover active:scale-90 transition-all disabled:opacity-40 disabled:bg-gray-400 disabled:shadow-none"
+                  disabled={status === 0 || outOfStock}
+                  title={outOfStock ? 'Món đã hết' : 'Thêm nhanh 1 phần'}
                 >
                   <Plus size={16} strokeWidth={3} />
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
           
           {displayItems.length === 0 && (
             <div className="text-center py-12 text-text-tertiary text-[14px]">
