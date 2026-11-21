@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
@@ -26,6 +26,7 @@ export default function Checkout() {
   const [vnpayTx, setVnpayTx] = useState(null);
   const [vnpayStatusInfo, setVnpayStatusInfo] = useState(null);
   const [isQueryingDr, setIsQueryingDr] = useState(false);
+  const [sepayTx, setSepayTx] = useState(null);
 
   const { staff } = useAuthStore();
   const { data: orderData } = useQuery({
@@ -56,6 +57,40 @@ export default function Checkout() {
 
   const formatMoney = (val) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(val || 0));
+
+  useEffect(() => {
+    if (!sepayTx?.txnRef || paymentMethod !== 'BANK_TRANSFER') return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await apiClient.post('/payments/vnpay/status', { txnRef: sepayTx.txnRef });
+        if (res.data?.status === 'SUCCESS') {
+          clearInterval(timer);
+          toast.success('SePay đã xác nhận nhận đủ tiền vào BIDV!');
+          navigate(`/cashier/invoice/${res.data.paymentId}`);
+        }
+      } catch {
+        // Ignore transient poll errors
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [sepayTx?.txnRef, paymentMethod, navigate]);
+
+  const handleCreateSepayQr = async () => {
+    setIsProcessing(true);
+    try {
+      const res = await apiClient.post('/payments/sepay/create', {
+        orderId: Number(orderId),
+        sessionId: currentOrder?.SessionID,
+        promotionId: promotionId ? Number(promotionId) : null,
+      });
+      setSepayTx(res.data);
+      toast.success('Đã tạo mã QR tự động! Chờ khách quét chuyển khoản.');
+    } catch (err) {
+      toast.error(err.message || 'Lỗi tạo mã QR SePay');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleCheckout = async () => {
     setIsProcessing(true);
@@ -260,29 +295,45 @@ export default function Checkout() {
           </div>
         </div>
 
-        {/* Khung VietQR BIDV rõ ràng cho Thu ngân đối chiếu */}
-        {paymentMethod === 'BANK_TRANSFER' && previewInfo?.vietQr && (
-          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-center gap-4">
-            <img
-              src={previewInfo.vietQr.qrUrl}
-              alt="VietQR"
-              className="w-44 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xs shrink-0"
-            />
-            <div className="text-sm space-y-1.5 text-gray-700">
-              <p className="text-xs font-bold uppercase text-emerald-800">
-                Thông tin chuyển khoản BIDV (VietQR)
-              </p>
-              <p>Ngân hàng: <b>{previewInfo.vietQr.bankId}</b></p>
-              <p>Số tài khoản: <b className="font-mono">{previewInfo.vietQr.accountNo}</b></p>
-              <p>Chủ tài khoản: <b>{previewInfo.vietQr.accountName}</b></p>
-              <p>Số tiền: <b className="text-primary">{formatMoney(previewInfo.vietQr.amount)}</b></p>
-              <p>Nội dung CK: <b className="font-mono text-xs">{previewInfo.vietQr.addInfo}</b></p>
-              <p className="text-xs text-emerald-700 pt-1 font-medium">
-                Kiểm tra app ngân hàng đã nhận đủ tiền rồi bấm nút xác nhận bên dưới.
-              </p>
+        {/* Khung VietQR BIDV rõ ràng cho Thu ngân đối chiếu / SePay tự động */}
+        {paymentMethod === 'BANK_TRANSFER' && (sepayTx?.vietQr || previewInfo?.vietQr) && (() => {
+          const qr = sepayTx?.vietQr || previewInfo.vietQr;
+          return (
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-center gap-4">
+              <img
+                src={qr.qrUrl}
+                alt="VietQR"
+                className="w-44 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xs shrink-0"
+              />
+              <div className="text-sm space-y-1.5 text-gray-700 flex-1">
+                <p className="text-xs font-bold uppercase text-emerald-800">
+                  {sepayTx ? 'Mã QR SePay Tự Động (Chờ tiền vào BIDV)' : 'Thông tin chuyển khoản BIDV (VietQR)'}
+                </p>
+                <p>Ngân hàng: <b>{qr.bankId}</b></p>
+                <p>Số tài khoản: <b className="font-mono">{qr.accountNo}</b></p>
+                <p>Chủ tài khoản: <b>{qr.accountName}</b></p>
+                <p>Số tiền: <b className="text-primary">{formatMoney(qr.amount)}</b></p>
+                <p>Nội dung CK: <b className="font-mono text-xs text-primary">{qr.addInfo}</b></p>
+
+                {sepayTx ? (
+                  <div className="flex items-center gap-2 text-xs text-emerald-700 font-bold pt-1">
+                    <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                    Hệ thống đang tự động lắng nghe SePay Webhook...
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleCreateSepayQr}
+                    disabled={isProcessing}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
+                  >
+                    <QrCode size={14} /> Tạo mã QR tự động xác nhận (SePay)
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Khung VNPay chờ xác nhận */}
         {vnpayTx && paymentMethod === 'VNPAY' && (

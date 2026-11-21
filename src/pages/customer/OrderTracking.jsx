@@ -14,6 +14,8 @@ export default function OrderTracking() {
   const [isRequesting, setIsRequesting] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showVietQr, setShowVietQr] = useState(false);
+  const [sepayTx, setSepayTx] = useState(null);
+  const [isCreatingSepay, setIsCreatingSepay] = useState(false);
   const [previewData, setPreviewData] = useState(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isRedirectingVnpay, setIsRedirectingVnpay] = useState(false);
@@ -44,6 +46,7 @@ export default function OrderTracking() {
   const handleOpenPaymentModal = async () => {
     setShowPayModal(true);
     setShowVietQr(false);
+    setSepayTx(null);
     setIsLoadingPreview(true);
     try {
       const res = await apiClient.post('/payments/customer/preview', { sessionToken });
@@ -55,6 +58,40 @@ export default function OrderTracking() {
       setIsLoadingPreview(false);
     }
   };
+
+  const handleOpenSepayQr = async () => {
+    setIsCreatingSepay(true);
+    try {
+      const res = await apiClient.post('/payments/sepay/create', { sessionToken });
+      setSepayTx(res.data);
+      setShowVietQr(true);
+    } catch (err) {
+      toast.error(err.message || 'Không thể tạo mã QR chuyển khoản.');
+    } finally {
+      setIsCreatingSepay(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showPayModal || !showVietQr || !sepayTx?.txnRef || !sessionToken) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await apiClient.post('/payments/vnpay/status', {
+          txnRef: sepayTx.txnRef,
+          sessionToken,
+        });
+        if (res.data?.status === 'SUCCESS') {
+          clearInterval(timer);
+          toast.success('Đã nhận chuyển khoản thành công!');
+          setShowPayModal(false);
+          navigate(`/customer/payment-result?txnRef=${encodeURIComponent(sepayTx.txnRef)}&sig=1&code=00`);
+        }
+      } catch {
+        // Bỏ qua lỗi poll tạm thời
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [showPayModal, showVietQr, sepayTx?.txnRef, sessionToken, navigate]);
 
   const handleRequestPayment = async () => {
     if (!window.confirm('Bạn có chắc chắn muốn gọi thu ngân thanh toán tại quầy?')) return;
@@ -279,29 +316,26 @@ export default function OrderTracking() {
                 </div>
 
                 <div className="space-y-2.5">
-                  {showVietQr && previewData.vietQr ? (
+                  {showVietQr && sepayTx?.vietQr ? (
                     <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 text-center space-y-3">
                       <p className="text-xs font-bold uppercase text-emerald-800">
-                        Quét mã VietQR để chuyển khoản
+                        Quét mã VietQR để chuyển khoản tự động
                       </p>
                       <img
-                        src={previewData.vietQr.qrUrl}
+                        src={sepayTx.vietQr.qrUrl}
                         alt="VietQR"
                         className="w-56 mx-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xs"
                       />
                       <div className="text-xs text-gray-700 space-y-1 bg-white p-2.5 rounded-lg border border-emerald-100">
-                        <p><span className="text-gray-500">Ngân hàng:</span> <b>{previewData.vietQr.bankId}</b></p>
-                        <p><span className="text-gray-500">Số tài khoản:</span> <b className="font-mono">{previewData.vietQr.accountNo}</b></p>
-                        <p><span className="text-gray-500">Chủ TK:</span> <b>{previewData.vietQr.accountName}</b></p>
-                        <p><span className="text-gray-500">Nội dung:</span> <b className="font-mono">{previewData.vietQr.addInfo}</b></p>
+                        <p><span className="text-gray-500">Ngân hàng:</span> <b>{sepayTx.vietQr.bankId}</b></p>
+                        <p><span className="text-gray-500">Số tài khoản:</span> <b className="font-mono">{sepayTx.vietQr.accountNo}</b></p>
+                        <p><span className="text-gray-500">Chủ TK:</span> <b>{sepayTx.vietQr.accountName}</b></p>
+                        <p><span className="text-gray-500">Nội dung:</span> <b className="font-mono text-primary">{sepayTx.vietQr.addInfo}</b></p>
                       </div>
-                      <button
-                        onClick={handleRequestPayment}
-                        disabled={isRequesting || order.Status === 3}
-                        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm"
-                      >
-                        {order.Status === 3 ? 'Đã báo thu ngân xác nhận' : 'Đã chuyển khoản - Báo thu ngân xác nhận'}
-                      </button>
+                      <div className="flex items-center justify-center gap-2 text-xs text-emerald-700 font-semibold py-1">
+                        <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                        Đang chờ ngân hàng xác nhận tự động...
+                      </div>
                       <button
                         onClick={() => setShowVietQr(false)}
                         className="w-full py-2 text-xs text-gray-500 font-medium hover:text-gray-800"
@@ -321,10 +355,11 @@ export default function OrderTracking() {
 
                       {previewData.vietQr && (
                         <button
-                          onClick={() => setShowVietQr(true)}
-                          className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-2 text-sm shadow-sm active:scale-[0.99] transition-all"
+                          onClick={handleOpenSepayQr}
+                          disabled={isCreatingSepay}
+                          className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-2 text-sm shadow-sm active:scale-[0.99] transition-all disabled:opacity-70"
                         >
-                          <QrCode size={18} /> Chuyển khoản QR Ngân hàng ({previewData.vietQr.bankId})
+                          <QrCode size={18} /> {isCreatingSepay ? 'Đang tạo mã QR...' : `Chuyển khoản QR Ngân hàng (${previewData.vietQr.bankId})`}
                         </button>
                       )}
 
