@@ -27,6 +27,27 @@ export default function OrderTracking() {
     enabled: !!sessionToken
   });
 
+  useEffect(() => {
+    if (!showPayModal || !showVietQr || !sepayTx?.txnRef || !sessionToken) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await apiClient.post('/payments/vnpay/status', {
+          txnRef: sepayTx.txnRef,
+          sessionToken,
+        });
+        if (res.data?.status === 'SUCCESS') {
+          clearInterval(timer);
+          toast.success('Đã nhận chuyển khoản thành công!');
+          setShowPayModal(false);
+          navigate(`/customer/payment-result?txnRef=${encodeURIComponent(sepayTx.txnRef)}&sig=1&code=00`);
+        }
+      } catch {
+        // Bỏ qua lỗi poll tạm thời
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [showPayModal, showVietQr, sepayTx?.txnRef, sessionToken, navigate]);
+
   if (isLoading && !isRefetching) {
     return <div className="p-10 text-center text-gray-500 flex flex-col items-center gap-3 mt-20"><RefreshCcw className="animate-spin text-primary" /> Đang tải dữ liệu...</div>;
   }
@@ -71,27 +92,6 @@ export default function OrderTracking() {
       setIsCreatingSepay(false);
     }
   };
-
-  useEffect(() => {
-    if (!showPayModal || !showVietQr || !sepayTx?.txnRef || !sessionToken) return;
-    const timer = setInterval(async () => {
-      try {
-        const res = await apiClient.post('/payments/vnpay/status', {
-          txnRef: sepayTx.txnRef,
-          sessionToken,
-        });
-        if (res.data?.status === 'SUCCESS') {
-          clearInterval(timer);
-          toast.success('Đã nhận chuyển khoản thành công!');
-          setShowPayModal(false);
-          navigate(`/customer/payment-result?txnRef=${encodeURIComponent(sepayTx.txnRef)}&sig=1&code=00`);
-        }
-      } catch {
-        // Bỏ qua lỗi poll tạm thời
-      }
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [showPayModal, showVietQr, sepayTx?.txnRef, sessionToken, navigate]);
 
   const handleRequestPayment = async () => {
     if (!window.confirm('Bạn có chắc chắn muốn gọi thu ngân thanh toán tại quầy?')) return;
