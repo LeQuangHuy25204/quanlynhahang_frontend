@@ -334,8 +334,15 @@ export default function OrderTracking() {
                       </div>
                       <div className="flex items-center justify-center gap-2 text-xs text-emerald-700 font-semibold py-1">
                         <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                        Đang chờ ngân hàng xác nhận tự động...
+                        Đang chờ xác nhận tự động...
                       </div>
+                      <button
+                        onClick={handleRequestPayment}
+                        disabled={isRequesting || order.Status === 3}
+                        className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs disabled:opacity-60"
+                      >
+                        {order.Status === 3 ? 'Đã báo thu ngân xác nhận' : 'Đã chuyển khoản - Báo thu ngân xác nhận'}
+                      </button>
                       <button
                         onClick={() => setShowVietQr(false)}
                         className="w-full py-2 text-xs text-gray-500 font-medium hover:text-gray-800"
